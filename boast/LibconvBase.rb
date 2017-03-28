@@ -3,8 +3,8 @@
 require './GenericConvolution2.rb'
 require './WaveletFilters.rb'
 require './MagicFilter2.rb'
-require './old/AnaRotPer-2.rb'
-require './old/Synthesis.rb'
+require './AnaRotPer-2.rb'
+require './Synthesis.rb'
 
 openmp = true
 def MagicFilter1d(filter, optims=GenericOptimization::new)
