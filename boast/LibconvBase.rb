@@ -1,10 +1,10 @@
 #define the basic operations for libconv generation including the
 #reference operations coming from BigDFT sources
-require './GenericConvolution2.rb'
-require './WaveletFilters.rb'
-require './MagicFilter2.rb'
-require './AnaRotPer-2.rb'
-require './Synthesis.rb'
+require_relative 'GenericConvolution2.rb'
+require_relative 'WaveletFilters.rb'
+require_relative 'MagicFilter2.rb'
+require_relative 'AnaRotPer-2.rb'
+require_relative 'Synthesis.rb'
 
 openmp = true
 def MagicFilter1d(filter, optims=GenericOptimization::new)
