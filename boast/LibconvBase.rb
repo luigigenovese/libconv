@@ -248,14 +248,14 @@ def generate_imf(optims=nil)
 end
 
 def generate_s1tor(optims=nil)
-  conv_filteritmp = ConvolutionFilter::new('sym8_md',SYM8_MF,8)
+  conv_filteritmp = ConvolutionFilter::new('sym8_md',SYM8_MF.reverse,8)
   icomb=WaveletFilterRecompose::new("symicomb#{SYM8_LP.length/2}", SYM8_LP,:convolution_filter=>conv_filteritmp)
   iwticomb = Wavelet1d( icomb, :recompose, optims )
   return LibConvKernel::new(iwticomb,LibConvOp::new(:s1tor))
 end
 
 def generate_rtos1(optims=nil)
-  conv_filteritmp = ConvolutionFilter::new('sym8_md',SYM8_MF,8)
+  conv_filteritmp = ConvolutionFilter::new('sym8_md',SYM8_MF.reverse,8)
   icombi=WaveletFilterDecompose::new("symicomb#{SYM8_LP.length/2}", SYM8_LP,:convolution_filter=>conv_filteritmp)
   dwticomb = Wavelet1d( icombi, :decompose, optims )
   return LibConvKernel::new(dwticomb,LibConvOp::new(:rtos1))

@@ -337,7 +337,7 @@ class WaveletFilter < Filter
     require 'bigdecimal'
     lp = @fil_array.collect { |e| BigDecimal.new(e) }
     hp = lp.each_with_index.collect { |e,i| i % 2 == 0 ? e : -e }.reverse
-    cv = @convolution.fil_array.collect { |e| BigDecimal.new(e) }
+    cv = @convolution.fil_array.reverse.collect { |e| BigDecimal.new(e) }
 
     lp_length = lp.length
     hp_length = hp.length
