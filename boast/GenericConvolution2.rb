@@ -6,6 +6,8 @@ register_funccall("modulo")
 register_funccall("min")
 register_funccall("max")
 
+module GenericConvolution
+
 class Filter
   # List of the floating point values of the convolution filter
   attr_reader :fil_array
@@ -1230,7 +1232,7 @@ class ConvolutionOperator1d
       #next if optim[:mod_arr] and @bc.free?
       #puts optim
       kernel = CKernel::new
-      print_header
+      GenericConvolution.print_header
       p = self.procedure(optim)
       pr p
       kernel.procedure = p
@@ -1557,7 +1559,7 @@ class GenericConvolutionOperator1d
     return cost * m
   end
 
-  def procedure(util = nil)
+  def procedure_name(util = nil)
     function_name = ""
     function_name += "d_" if default_real_size == 8
     function_name += "s_" if default_real_size == 4
@@ -1566,6 +1568,21 @@ class GenericConvolutionOperator1d
     function_name += @filter.name
     function_name += "_dotin" if @dot_in
     function_name += "_" + util.to_s if util
+    function_name
+  end
+
+  def empty_procedure(util = nil)
+    function_name = procedure_name(util)
+
+    vv = @vars
+    vv += [ @cost ] if util == :cost
+
+    p = Procedure( function_name, vv )
+  end
+
+  def procedure(util = nil)
+
+    function_name = procedure_name(util)
 
     vv = @vars
     vv += [ @cost ] if util == :cost
@@ -2311,7 +2328,7 @@ class ConvolutionOptimization
   end
 end
 
-def print_header(macro = false)
+def self.print_header(macro = false)
   if get_lang == C then
     get_output.puts "#include <immintrin.h>" if get_architecture == X86
     get_output.puts "#include <arm_neon.h>" if get_architecture == ARM
@@ -2327,4 +2344,4 @@ def print_header(macro = false)
   end
 end
 
-
+end
