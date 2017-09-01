@@ -177,6 +177,11 @@ module BigDFT
     def buffer_increment
       @filter.length - 1
     end
+
+    def dimension_space
+      :r
+    end
+
   end
 
   class WaveletKernel1d < LibConvKernel
@@ -188,6 +193,10 @@ module BigDFT
 
     def buffer_increment
       @filter.length / 2 - 1
+    end
+
+    def dimension_space
+      :s1
     end
 
   end

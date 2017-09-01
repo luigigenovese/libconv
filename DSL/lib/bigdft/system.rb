@@ -76,12 +76,12 @@ module BigDFT
     def dimensions(space)
       space = get_space(space)
 
-      reference_dimensions.each_with_index.collect do |d,i|
+      @reference_dimensions.each_with_index.collect do |d,i|
         if space[i] == @reference_space
-          d
+          d.get_dim(@reference_space)
         else
           op = @spaces[@reference_space].transition_operator(space[i])
-          Dimension::new(op.dims_from_in(d, bc_from_transition(i, @reference_space, space[i])).last, reference_space).get_dim(space[i])
+          Dimension::new(op.dims_from_in(d.get_dim(op.dimension_space), bc_from_transition(i, @reference_space, space[i])).last, op.dimension_space).get_dim(space[i])
         end
       end
     end

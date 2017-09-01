@@ -27,6 +27,8 @@ module BigDFT
         end
       end
     end
+
+    @space = :s1
     @s1s0 = IDWT
     @s1r = S1TOR
 
@@ -52,6 +54,7 @@ module BigDFT
 
     end
 
+    @space = :s0
     @s0r = MF
     @s0s1 = DWT
 
@@ -77,6 +80,7 @@ module BigDFT
 
     end
 
+    @space = :r
     @rs0 = IMF
     @rs1 = RTOS1
 
