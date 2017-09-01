@@ -1,6 +1,7 @@
 #define the basic operations for libconv generation including the
 #reference operations coming from BigDFT sources
 require_relative 'GenericConvolution2.rb'
+include GenericConvolution
 require_relative 'WaveletFilters.rb'
 require_relative 'MagicFilter2.rb'
 require_relative 'AnaRotPer-2.rb'
@@ -15,7 +16,7 @@ def MagicFilter1d(filter, optims=GenericOptimization::new)
 
   kernel = BOAST::CKernel::new
 
-  print_header
+  GenericConvolution::print_header
 
   subops.each_value { |op|
     BOAST::pr op
@@ -35,7 +36,7 @@ def Wavelet1d(wavelet_filter, direction, optims=GenericOptimization::new)
 
   kernel = BOAST::CKernel::new
 
-  print_header
+  GenericConvolution::print_header
 
   subops.each_value { |op|
     BOAST::pr op
