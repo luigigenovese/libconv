@@ -1134,9 +1134,6 @@ class ConvolutionOperator1d
   end
 
   def params(dim, index=@shape.processed_dim_index)
-    if @wavelet then
-      dim[index] /= 2
-    end
     vars=[]
     varsin=[]
     varsout=[]
@@ -1159,13 +1156,13 @@ class ConvolutionOperator1d
       if @bc.grow? then
         varsi.push(s_n)
         if @wavelet then
-          varso.push(s_n + @filter.low.length - 1)
+          varso.push(s_n + @filter.length - 2)
         else
           varso.push(s_n + @filter.length - 1)
         end
       elsif @bc.shrink?
         if @wavelet then
-          varsi.push(s_n + @filter.low.length - 1)
+          varsi.push(s_n + @filter.length - 2)
         else
           varsi.push(s_n + @filter.length - 1)
         end
@@ -1199,21 +1196,16 @@ class ConvolutionOperator1d
     end
 
     align = 64
-    if @wavelet then
-      vars.push(ANArray::new(type, align, *varsin,2).random!)
-      vars.push(ANArray::new(type, align, *varsout,2))
-    else
-      vars.push(ANArray::new(type, align, *varsin).random!)
-      if @x2 then
-        if @bc.grow? then
-          vars.push(ANArray::new(type, align, *varsout).random!)
-        else
-          vars.push(ANArray::new(type, align, *varsin).random!)
-        end
+    vars.push(ANArray::new(type, align, *varsin).random!)
+    if @x2 then
+      if @bc.grow? then
+        vars.push(ANArray::new(type, align, *varsout).random!)
+      else
+        vars.push(ANArray::new(type, align, *varsin).random!)
       end
-      vars.push(ANArray::new(type, align, *varsout))
-      vars.push(ANArray::new(type, align, *varsout)) if @kinetic and @transpose != 0
     end
+    vars.push(ANArray::new(type, align, *varsout))
+    vars.push(ANArray::new(type, align, *varsout)) if @kinetic and @transpose != 0
     #accessory scalars
     nscal=0
     nscal+=1 if @a
@@ -1606,7 +1598,7 @@ class GenericConvolutionOperator1d
       elsif @narr then
         pr If(@bc[i] == BC::SHRINK => lambda {
           if @wavelet then
-            pr nti === @dims[@idim] + @filter.low.length*2 - 1
+            pr nti === @dims[@idim] + @filter.length - 2
           else
             pr nti === @dims[@idim] + @filter.length - 1
           end
@@ -1614,7 +1606,7 @@ class GenericConvolutionOperator1d
         }, @bc[i] == BC::GROW => lambda {
           pr nti === @dims[@idim]
           if @wavelet then
-            pr nto === @dims[@idim] + @filter.low.length*2 - 1
+            pr nto === @dims[@idim] + @filter.length - 2
           else
             pr nto === @dims[@idim] + @filter.length - 1
           end
