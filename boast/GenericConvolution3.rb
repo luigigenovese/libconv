@@ -499,7 +499,7 @@ class WaveletFilter < Filter
   end
 
   def cost
-    return @length * 2 * 2
+    return @length * 2
   end
 
 end
@@ -535,27 +535,27 @@ class WaveletFilterDecompose < WaveletFilter
   end
 
   def get_input_dim_std( dim )
-    return [ Dim( 0, dim*2 - 1 ) ]
+    return [ Dim( 0, dim - 1 ) ]
   end
 
   def get_input_dim_shrink( dim )
-    return [ Dim( lowfil*2, dim*2 + upfil*2 - 1 ) ]
+    return [ Dim( lowfil*2, dim + upfil*2 - 1 ) ]
   end
 
   def get_input_dim_ld_shrink( dim )
-    return [ Dim( lowfil*2, dim*2 + lowfil*2 - 1 ) ]
+    return [ Dim( lowfil*2, dim + lowfil*2 - 1 ) ]
   end
 
   def get_output_dim_std( dim )
-    return [ Dim( 0, dim - 1 ), Dim(0, 1) ]
+    return [ Dim( 0, dim/2 - 1 ), Dim(0, 1) ]
   end
 
   def get_output_dim_grow( dim )
-    return [ Dim( -upfil, dim - lowfil - 1 ), Dim(0, 1) ]
+    return [ Dim( -upfil, dim/2 - lowfil - 1 ), Dim(0, 1) ]
   end
 
   def get_output_dim_ld_grow( dim )
-    return [ Dim( -upfil, dim - upfil - 1 ), Dim(0, 1) ]
+    return [ Dim( -upfil, dim/2 - upfil - 1 ), Dim(0, 1) ]
   end
 
   def convert_output_indexes(indexes, processed_index)
@@ -619,27 +619,27 @@ class WaveletFilterRecompose < WaveletFilter
   end
 
   def get_input_dim_std( dim )
-    return [ Dim( 0, dim - 1 ), Dim(0, 1) ]
+    return [ Dim( 0, dim/2 - 1 ), Dim(0, 1) ]
   end
 
   def get_input_dim_shrink( dim )
-    return [ Dim( lowfil, dim + upfil - 1 ), Dim(0, 1) ]
+    return [ Dim( lowfil, dim/2 + upfil - 1 ), Dim(0, 1) ]
   end
 
   def get_input_dim_ld_shrink( dim )
-    return [ Dim( lowfil, dim + lowfil - 1 ), Dim(0, 1) ]
+    return [ Dim( lowfil, dim/2 + lowfil - 1 ), Dim(0, 1) ]
   end
 
   def get_output_dim_std( dim )
-    return [ Dim( 0, dim*2 - 1 ) ]
+    return [ Dim( 0, dim - 1 ) ]
   end
 
   def get_output_dim_grow( dim )
-    return [ Dim( -upfil*2, dim*2 - lowfil*2 - 1 ) ]
+    return [ Dim( -upfil*2, dim - lowfil*2 - 1 ) ]
   end
 
   def get_output_dim_ld_grow( dim )
-    return [ Dim( -upfil*2, dim*2 - upfil*2 - 1 ) ]
+    return [ Dim( -upfil*2, dim - upfil*2 - 1 ) ]
   end
 
   def convert_output_indexes(indexes, processed_index)
@@ -1022,15 +1022,17 @@ class Convolution1dShape
   end
 
   def compute_inner_loop_boundaries
+    d = @dim_n
+    d = d / 2 if @filter.kind_of?( WaveletFilter )
     if @bc.grow? then
       @line_start = -@filter.upfil
-      @line_end = @dim_n - @filter.lowfil - 1
+      @line_end = d - @filter.lowfil - 1
     else
       @line_start = 0
-      @line_end = @dim_n - 1
+      @line_end = d - 1
     end
     @border_low = -@filter.lowfil
-    @border_high = @dim_n - @filter.upfil
+    @border_high = d - @filter.upfil
   end
 
 end
@@ -1646,13 +1648,8 @@ class GenericConvolutionOperator1d
         vars.push( tmp_cost.address ) if util == :cost
         lds = []
         if @ld
-          if @wavelet
-            lds.push( @nx[@idim]/2 )
-            lds.push( @ny[@idim]/2 )
-        else
-            lds.push( @nx[@idim] )
-            lds.push( @ny[@idim] )
-          end
+          lds.push( @nx[@idim] )
+          lds.push( @ny[@idim] )
         end
         procname = ConvolutionOperator1d::new(@filter, BC::new(bc), dim_indexes, opts).base_name
         procname += "_" + util.to_s if util
@@ -1732,11 +1729,7 @@ class GenericConvolutionOperator1d
           pr nto === nto * ndat_right
         end
         dim_indexes = [1,0]
-        if @wavelet
-          dims = [@dims[@idim]/2, ndat_right]
-        else
-          dims = [@dims[@idim], ndat_right]
-        end
+        dims = [@dims[@idim], ndat_right]
         print_call.call
       }, @idim == @ndim - 1 => lambda {
         pr ndat_left === 1
@@ -1752,11 +1745,7 @@ class GenericConvolutionOperator1d
           pr nto === nto * ndat_left
         end
         dim_indexes = [0,1]
-        if @wavelet
-          dims = [ndat_left, @dims[@idim]/2]
-        else
-          dims = [ndat_left, @dims[@idim]]
-        end
+        dims = [ndat_left, @dims[@idim]]
         print_call.call
       }, else: lambda {
         pr ndat_left === 1
@@ -1780,11 +1769,7 @@ class GenericConvolutionOperator1d
           pr nto === nto * ndat_left * ndat_right
         end
         dim_indexes = [2,0,1]
-        if @wavelet
-          dims = [ndat_left, @dims[@idim]/2, ndat_right]
-        else
-          dims = [ndat_left, @dims[@idim], ndat_right]
-        end
+        dims = [ndat_left, @dims[@idim], ndat_right]
         print_call.call
       })
     }
