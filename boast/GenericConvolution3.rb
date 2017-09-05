@@ -1889,31 +1889,23 @@ class GenericConvolutionOperator
     (0...n.length).each { |indx|
       if bc[indx] == BC::SHRINK then
         if @wavelet then
-          dims_actual[indx] = n[indx] * 2 + @filter.length - 2
+          dims_actual[indx] = n[indx] + @filter.length - 2
         else
           dims_actual[indx] = n[indx] + @filter.length - 1
         end
       else
-        if @wavelet then
-          dims_actual[indx] = n[indx] * 2
-        else
-          dims_actual[indx] = n[indx]
-        end
+        dims_actual[indx] = n[indx]
       end
     }
     change_dims = lambda { |indx|
       if bc[indx] == BC::GROW then
         if @wavelet then
-          dims_actual[indx] = n[indx] * 2 + @filter.length  - 2
+          dims_actual[indx] = n[indx] + @filter.length - 2
         else
           dims_actual[indx] = n[indx] + @filter.length - 1
         end
       else
-        if @wavelet then
-          dims_actual[indx] = n[indx] * 2
-        else
-          dims_actual[indx] = n[indx]
-        end
+        dims_actual[indx] = n[indx]
       end
     }
     if n.length == 1 then
@@ -1976,24 +1968,16 @@ class GenericConvolutionOperator
       pr dims_left === @ndim
       pr For( i, 0, @ndim - 1 ) {
         if @ld then
-          if @wavelet then
-            pr dims_actual[i] === @nx[i] * 2
-          else
-            pr dims_actual[i] === @nx[i]
-          end
+          pr dims_actual[i] === @nx[i]
         else
           pr If(@bc[i] == BC::SHRINK => lambda {
             if @wavelet then
-              pr dims_actual[i] === @dims[i] * 2 + @filter.length - 2
+              pr dims_actual[i] === @dims[i] + @filter.length - 2
             else
               pr dims_actual[i] === @dims[i] + @filter.length - 1
             end
           }, else: lambda {
-            if @wavelet then
-              pr dims_actual[i] === @dims[i] * 2
-            else
-              pr dims_actual[i] === @dims[i]
-            end
+            pr dims_actual[i] === @dims[i]
           })
         end
       }
@@ -2042,11 +2026,7 @@ class GenericConvolutionOperator
           pr ndat_tot_out === ndat_tot_in
           pr ndat_tot_in === ndat_tot_in * dims_actual[indx]
           if @ld then
-            if @wavelet then
-              pr ndat_tot_out === ndat_tot_out * @ny[indx] * 2
-            else
-              pr ndat_tot_out === ndat_tot_out * @ny[indx]
-            end
+            pr ndat_tot_out === ndat_tot_out * @ny[indx]
           end
           f = For(j, 0, @narr-1)
         end
