@@ -1604,7 +1604,7 @@ class GenericConvolutionOperator1d
       elsif @narr then
         pr If(@bc[i] == BC::SHRINK => lambda {
           if @wavelet then
-            pr nti === @dims[@idim] + @filter.low.length - 1
+            pr nti === @dims[@idim] + @filter.low.length*2 - 1
           else
             pr nti === @dims[@idim] + @filter.length - 1
           end
@@ -1612,15 +1612,11 @@ class GenericConvolutionOperator1d
         }, @bc[i] == BC::GROW => lambda {
           pr nti === @dims[@idim]
           if @wavelet then
-            pr nto === @dims[@idim] + @filter.low.length - 1
+            pr nto === @dims[@idim] + @filter.low.length*2 - 1
           else
             pr nto === @dims[@idim] + @filter.length - 1
           end
         })
-      end
-      if @narr and @wavelet then
-        pr nti === nti * 2
-        pr nto === nto * 2
       end
       dims = []
       dim_indexes = []
@@ -1649,8 +1645,15 @@ class GenericConvolutionOperator1d
         vars.push( @dot_in ) if @dot_in
         vars.push( tmp_cost.address ) if util == :cost
         lds = []
-        lds.push( @nx[@idim] ) if @ld
-        lds.push( @ny[@idim] ) if @ld
+        if @ld
+          if @wavelet
+            lds.push( @nx[@idim]/2 )
+            lds.push( @ny[@idim]/2 )
+        else
+            lds.push( @nx[@idim] )
+            lds.push( @ny[@idim] )
+          end
+        end
         procname = ConvolutionOperator1d::new(@filter, BC::new(bc), dim_indexes, opts).base_name
         procname += "_" + util.to_s if util
         args = dims + lds + dats + vars
@@ -1723,14 +1726,17 @@ class GenericConvolutionOperator1d
           else
             pr ndat_right === ndat_right * @dims[i]
           end
-          pr ndat_right === ndat_right * 2 if @wavelet
         }
         if @narr then
           pr nti === nti * ndat_right
           pr nto === nto * ndat_right
         end
         dim_indexes = [1,0]
-        dims = [@dims[@idim], ndat_right]
+        if @wavelet
+          dims = [@dims[@idim]/2, ndat_right]
+        else
+          dims = [@dims[@idim], ndat_right]
+        end
         print_call.call
       }, @idim == @ndim - 1 => lambda {
         pr ndat_left === 1
@@ -1740,14 +1746,17 @@ class GenericConvolutionOperator1d
           else
             pr ndat_left === ndat_left * @dims[i]
           end
-          pr ndat_left === ndat_left * 2 if @wavelet
         }
         if @narr then
           pr nti === nti * ndat_left
           pr nto === nto * ndat_left
         end
         dim_indexes = [0,1]
-        dims = [ndat_left, @dims[@idim]]
+        if @wavelet
+          dims = [ndat_left, @dims[@idim]/2]
+        else
+          dims = [ndat_left, @dims[@idim]]
+        end
         print_call.call
       }, else: lambda {
         pr ndat_left === 1
@@ -1758,7 +1767,6 @@ class GenericConvolutionOperator1d
           else
             pr ndat_left === ndat_left * @dims[i]
           end
-          pr ndat_left === ndat_left * 2 if @wavelet
         }
         pr For( i, @idim + 1, @ndim - 1 ) {
           if @ld and util != :cost then
@@ -1766,14 +1774,17 @@ class GenericConvolutionOperator1d
           else
             pr ndat_right === ndat_right * @dims[i]
           end
-          pr ndat_right === ndat_right * 2 if @wavelet
         }
         if @narr then
           pr nti === nti * ndat_left * ndat_right
           pr nto === nto * ndat_left * ndat_right
         end
         dim_indexes = [2,0,1]
-        dims = [ndat_left, @dims[@idim], ndat_right]
+        if @wavelet
+          dims = [ndat_left, @dims[@idim]/2, ndat_right]
+        else
+          dims = [ndat_left, @dims[@idim], ndat_right]
+        end
         print_call.call
       })
     }
