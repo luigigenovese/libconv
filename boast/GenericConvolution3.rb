@@ -535,15 +535,15 @@ class WaveletFilterDecompose < WaveletFilter
   end
 
   def get_input_dim_std( dim )
-    return [ Dim(0, 1), Dim( 0, dim - 1 ) ]
+    return [ Dim( 0, dim*2 - 1 ) ]
   end
 
   def get_input_dim_shrink( dim )
-    return [ Dim(0, 1), Dim( lowfil, dim + upfil - 1 ) ]
+    return [ Dim( lowfil*2, dim*2 + upfil*2 - 1 ) ]
   end
 
   def get_input_dim_ld_shrink( dim )
-    return [ Dim(0, 1), Dim( lowfil, dim + lowfil - 1 ) ]
+    return [ Dim( lowfil*2, dim*2 + lowfil*2 - 1 ) ]
   end
 
   def get_output_dim_std( dim )
@@ -576,8 +576,8 @@ class WaveletFilterDecompose < WaveletFilter
     tmp = [[], []]
     indexes.each_with_index{ |indx, i|
       if i == processed_index then
-        tmp[0][i] = [0, indx]
-        tmp[1][i] = [1, indx]
+        tmp[0][i] = indx*2
+        tmp[1][i] = indx*2 + 1
       else
         tmp[0][i] = indx
         tmp[1][i] = indx
@@ -631,23 +631,23 @@ class WaveletFilterRecompose < WaveletFilter
   end
 
   def get_output_dim_std( dim )
-    return [ Dim(0, 1), Dim( 0, dim - 1 ) ]
+    return [ Dim( 0, dim*2 - 1 ) ]
   end
 
   def get_output_dim_grow( dim )
-    return [ Dim(0, 1), Dim( -upfil, dim - lowfil - 1 ) ]
+    return [ Dim( -upfil*2, dim*2 - lowfil*2 - 1 ) ]
   end
 
   def get_output_dim_ld_grow( dim )
-    return [ Dim(0, 1), Dim( -upfil, dim - upfil - 1 ) ]
+    return [ Dim( -upfil*2, dim*2 - upfil*2 - 1 ) ]
   end
 
   def convert_output_indexes(indexes, processed_index)
     tmp = [[], []]
     indexes.each_with_index{ |indx, i|
       if i == processed_index then
-        tmp[0][i] = [0, indx]
-        tmp[1][i] = [1, indx]
+        tmp[0][i] = indx*2
+        tmp[1][i] = indx*2 + 1
       else
         tmp[0][i] = indx
         tmp[1][i] = indx
