@@ -73,13 +73,25 @@ class Filter
       else
         get_input_dim_shrink( dim )
       end
+    elsif @bc.grow? then
+      if options[:ld] then
+        get_input_dim_ld_grow( dim )
+      else
+        get_input_dim_grow( dim )
+      end
     else
       get_input_dim_std( dim )
     end
   end
 
   def get_output_dim( dim, options = {} )
-    if @bc.grow? then
+    if @bc.shrink? then
+      if options[:ld] then
+        get_output_dim_ld_shrink( dim )
+      else
+        get_output_dim_shrink( dim )
+      end
+    elsif @bc.grow? then
       if options[:ld] then
         get_output_dim_ld_grow( dim )
       else
@@ -119,6 +131,10 @@ class Filter
         return filter_index + iterator - ((filter_index + iterator + dim * 2 )/dim - 2) * dim
       end
     end
+  end
+
+  def cost
+    return @length * 2
   end
 
 end
@@ -205,33 +221,37 @@ class ConvolutionFilter < Filter
   end
 
   def get_input_dim_std( dim )
-    return Dim(0, dim - 1)
+    Dim( 0, dim - 1 )
   end
 
   alias get_output_dim_std get_input_dim_std
 
   def get_input_dim_shrink( dim )
-    return Dim( lowfil, dim + upfil  - 1)
+    Dim( lowfil, dim + lowfil  - 1 )
   end
+
+  def get_output_dim_shrink( dim )
+    Dim( 0, dim - 1 + lowfil - upfil )
+  end
+
+  alias get_input_dim_ld_shrink get_input_dim_shrink
+
+  alias get_output_dim_ld_shrink get_output_dim_std
+
+  alias get_input_dim_grow get_input_dim_std
 
   def get_output_dim_grow( dim )
-    return Dim(-upfil,  dim - lowfil - 1)
+    Dim( -upfil,  dim - lowfil - 1 )
   end
 
-  def get_input_dim_ld_shrink( dim )
-    return Dim(lowfil, dim + lowfil - 1)
-  end
+  alias get_input_dim_ld_grow get_input_dim_std
 
   def get_output_dim_ld_grow( dim )
-    return Dim( -upfil, dim - upfil - 1)
+    Dim( -upfil, dim - upfil - 1 )
   end
 
   def decl_filters
     decl fil
-  end
-
-  def cost
-    return @length * 2
   end
 
 end #class ConvolutionFilter
@@ -498,10 +518,6 @@ class WaveletFilter < Filter
     decl high_odd.fil
   end
 
-  def cost
-    return @length * 2
-  end
-
 end
 
 class WaveletFilterDecompose < WaveletFilter
@@ -535,24 +551,32 @@ class WaveletFilterDecompose < WaveletFilter
   end
 
   def get_input_dim_std( dim )
-    return [ Dim( 0, dim - 1 ) ]
-  end
-
-  def get_input_dim_shrink( dim )
-    return [ Dim( lowfil*2, dim + upfil*2 - 1 ) ]
-  end
-
-  def get_input_dim_ld_shrink( dim )
-    return [ Dim( lowfil*2, dim + lowfil*2 - 1 ) ]
+    [ Dim( 0, dim - 1 ) ]
   end
 
   def get_output_dim_std( dim )
-    return [ Dim( 0, dim/2 - 1 ), Dim(0, 1) ]
+    [ Dim( 0, dim/2 - 1 ), Dim(0, 1) ]
   end
+
+  def get_input_dim_shrink( dim )
+    [ Dim( lowfil*2, dim + lowfil*2 - 1 ) ]
+  end
+
+  def get_output_dim_shrink( dim )
+    [ Dim( 0, dim/2 - 1 + lowfil - upfil ), Dim(0, 1) ]
+  end
+
+  alias get_input_dim_ld_shrink get_input_dim_shrink
+
+  alias get_output_dim_ld_shrink get_output_dim_std
+
+  alias get_input_dim_grow get_input_dim_std
 
   def get_output_dim_grow( dim )
     return [ Dim( -upfil, dim/2 - lowfil - 1 ), Dim(0, 1) ]
   end
+
+  alias get_input_dim_ld_grow get_input_dim_std
 
   def get_output_dim_ld_grow( dim )
     return [ Dim( -upfil, dim/2 - upfil - 1 ), Dim(0, 1) ]
@@ -619,24 +643,36 @@ class WaveletFilterRecompose < WaveletFilter
   end
 
   def get_input_dim_std( dim )
-    return [ Dim( 0, dim/2 - 1 ), Dim(0, 1) ]
+    [ Dim( 0, dim/2 - 1 ), Dim(0, 1) ]
+  end
+
+  def get_output_dim_std( dim )
+    [ Dim( 0, dim - 1 ) ]
   end
 
   def get_input_dim_shrink( dim )
-    return [ Dim( lowfil, dim/2 + upfil - 1 ), Dim(0, 1) ]
+    [ Dim( lowfil, dim/2 + lowfil - 1 ), Dim(0, 1) ]
+  end
+
+  def get_output_dim_shrink( dim )
+    [ Dim( 0, dim - 1 + lowfil*2 - upfil*2 ) ]
   end
 
   def get_input_dim_ld_shrink( dim )
     return [ Dim( lowfil, dim/2 + lowfil - 1 ), Dim(0, 1) ]
   end
 
-  def get_output_dim_std( dim )
-    return [ Dim( 0, dim - 1 ) ]
-  end
+  alias get_input_dim_ld_shrink get_input_dim_shrink
+
+  alias get_output_dim_ld_shrink get_output_dim_std
+
+  alias get_input_dim_grow get_input_dim_std
 
   def get_output_dim_grow( dim )
     return [ Dim( -upfil*2, dim - lowfil*2 - 1 ) ]
   end
+
+  alias get_input_dim_ld_grow get_input_dim_std
 
   def get_output_dim_ld_grow( dim )
     return [ Dim( -upfil*2, dim - upfil*2 - 1 ) ]
@@ -881,7 +917,7 @@ class Convolution1dShape
     compute_dimx_dimy
     compute_inner_loop_boundaries
 
-    @iterators =  (1..@length).collect{ |index| Int("i#{index}")}
+    @iterators =  (1..@length).collect { |index| Int("i#{index}") }
   end
 
   def to_s
@@ -1027,6 +1063,9 @@ class Convolution1dShape
     if @bc.grow? then
       @line_start = -@filter.upfil
       @line_end = d - @filter.lowfil - 1
+    elsif @bc.shrink? then
+      @line_start = 0
+      @line_end = d - 1 + @filter.lowfil - @filter.upfil
     else
       @line_start = 0
       @line_end = d - 1
@@ -1161,12 +1200,12 @@ class ConvolutionOperator1d
           varso.push(s_n + @filter.length - 1)
         end
       elsif @bc.shrink?
+        varsi.push(s_n)
         if @wavelet then
-          varsi.push(s_n + @filter.length - 2)
+          varso.push(s_n - @filter.length + 2)
         else
-          varsi.push(s_n + @filter.length - 1)
+          varso.push(s_n - @filter.length + 1)
         end
-        varso.push(s_n)
       else
         varsi.push(s_n)
         varso.push(s_n)
@@ -1597,12 +1636,12 @@ class GenericConvolutionOperator1d
         pr nto === @ny[@idim]
       elsif @narr then
         pr If(@bc[i] == BC::SHRINK => lambda {
+          pr nti === @dims[@idim]
           if @wavelet then
-            pr nti === @dims[@idim] + @filter.length - 2
+            pr nto === @dims[@idim] - @filter.length + 2
           else
-            pr nti === @dims[@idim] + @filter.length - 1
+            pr nto === @dims[@idim] - @filter.length + 1
           end
-          pr nto === @dims[@idim]
         }, @bc[i] == BC::GROW => lambda {
           pr nti === @dims[@idim]
           if @wavelet then
@@ -1610,6 +1649,9 @@ class GenericConvolutionOperator1d
           else
             pr nto === @dims[@idim] + @filter.length - 1
           end
+        }, :else => lambda {
+          pr nti === @dims[@idim]
+          pt nto === @dims[@idim]
         })
       end
       dims = []
@@ -1879,18 +1921,16 @@ class GenericConvolutionOperator
       return [ndat_ni_ndat2, indexes]
     }
     (0...n.length).each { |indx|
-      if bc[indx] == BC::SHRINK then
-        if @wavelet then
-          dims_actual[indx] = n[indx] + @filter.length - 2
-        else
-          dims_actual[indx] = n[indx] + @filter.length - 1
-        end
-      else
-        dims_actual[indx] = n[indx]
-      end
+      dims_actual[indx] = n[indx]
     }
     change_dims = lambda { |indx|
-      if bc[indx] == BC::GROW then
+      if bc[indx] == BC::SHRINK then
+        if @wavelet then
+          dims_actual[indx] = n[indx] - @filter.length + 2
+        else
+          dims_actual[indx] = n[indx] - @filter.length + 1
+        end
+      elsif bc[indx] == BC::GROW then
         if @wavelet then
           dims_actual[indx] = n[indx] + @filter.length - 2
         else
@@ -1962,15 +2002,7 @@ class GenericConvolutionOperator
         if @ld then
           pr dims_actual[i] === @nx[i]
         else
-          pr If(@bc[i] == BC::SHRINK => lambda {
-            if @wavelet then
-              pr dims_actual[i] === @dims[i] + @filter.length - 2
-            else
-              pr dims_actual[i] === @dims[i] + @filter.length - 1
-            end
-          }, else: lambda {
-            pr dims_actual[i] === @dims[i]
-          })
+          pr dims_actual[i] === @dims[i]
         end
       }
       compute_ni_ndat = lambda { |indx|
