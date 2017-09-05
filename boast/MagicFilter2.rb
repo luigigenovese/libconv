@@ -1,6 +1,5 @@
 require "BOAST"
 require 'narray'
-require_relative "GenericConvolution2.rb" 
 
 def magicfilter_ref( invert = false, free = false )
   lang = BOAST::get_lang
