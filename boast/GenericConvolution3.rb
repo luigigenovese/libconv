@@ -118,7 +118,7 @@ class Filter
   end
 
   def input_filter_index( iterator, filter_index, side, dim )
-    if @bc.free? or side == :center then
+    if @bc.free? || side == :center then
       return filter_index + iterator
     else
       if @mods then
@@ -198,7 +198,7 @@ class ConvolutionFilter < Filter
       pr options[:dot_in_tmp] === FMA(Load(options[:data_in][*i_in].set_align(out.type.total_size), out), out, options[:dot_in_tmp]) if options[:dot_in_tmp] #reduction !
       pr out === FMA(Load(options[:data_in][*i_in], out), Set(options[:a_x], out), out) if options[:a_x]
     }
-    if @bc.grow? and (options[:dot_in_tmp] or options[:a_x]) and options[:side] != :center then
+    if @bc.grow? && (options[:dot_in_tmp] || options[:a_x]) && options[:side] != :center then
       if options[:side] == :begin then
         pr If(options[:position] >= 0, &finish_block)
       elsif options[:side] == :end then
@@ -211,7 +211,7 @@ class ConvolutionFilter < Filter
     #to be controlled in the case of non-orthorhombic cells for kinetic operations
     pr out === out + Load(options[:data_in2][*i_in], out) if options[:data_in2]
 
-    if options[:accumulate] or (options[:kinetic] == :inplace and not options[:zero_out])  then
+    if options[:accumulate] || (options[:kinetic] == :inplace && !options[:zero_out])  then
       pr out === out + Load(data_out[*i_out].set_align(out.type.total_size), out)
     elsif options[:a_y] then
       pr out === FMA(Set(options[:a_y], out), Load(data_out[*i_out].set_align(out.type.total_size), out), out)
@@ -302,7 +302,7 @@ class PoissonFilter < ConvolutionFilter
   end
 
   def input_filter_index( iterator, filter_index, side, dim )
-    if @bc.nper? and side != :center then
+    if @bc.nper? && side != :center then
       if side == :end then
         return filter_index + lowfil + dim - 1
       else
@@ -442,7 +442,7 @@ class WaveletFilter < Filter
       return #just do it the first time
     end
     if @convolution then
-      if @bc and (@bc.grow? or @bc.shrink?) then
+      if @bc && (@bc.grow? || @bc.shrink?) then
         convcntr=@convolution.center-1
       else
         convcntr=@convolution.center
@@ -937,10 +937,10 @@ class Convolution1dShape
     @unroll_length = unroll_length if unroll_length
 
     @unrolled_dim_index = @non_processed_dim_indexes[0]
-    @unrolled_dim_index = non_processed_dim_indexes[unrolled_dim_index] if @length > 2 and unrolled_dim_index
+    @unrolled_dim_index = non_processed_dim_indexes[unrolled_dim_index] if @length > 2 && unrolled_dim_index
 
     @vector_length = 1
-    @vector_length = vector_length if not dot_in and @unrolled_dim_index == 0 and vector_length and vector_length <= @filter.length and @unroll_length % vector_length == 0
+    @vector_length = vector_length if !dot_in && @unrolled_dim_index == 0 && vector_length && vector_length <= @filter.length && @unroll_length % vector_length == 0
   end
 
   def for_parameters( dim_index, in_reliq, options = {} )
@@ -959,7 +959,7 @@ class Convolution1dShape
   end
 
   def reliq?( dim_index )
-    return ( @unrolled_dim_index == dim_index and @vector_length < @unroll_length )
+    return ( @unrolled_dim_index == dim_index && @vector_length < @unroll_length )
   end
 
   def output_indexes( unroll_index )
@@ -1133,7 +1133,7 @@ class ConvolutionOperator1d
 
 
     @vars.push @x = Real("x",:dir => :in, :dim => @shape.dimx, :restrict => true)
-    if @kinetic and @kinetic != :inplace and not options[:zero_out_work] then
+    if @kinetic && @kinetic != :inplace && !options[:zero_out_work] then
       if @bc.grow? then
         @vars.push @x2 = Real("x2",:dir => :in, :dim => @shape.dimy, :restrict => true)
       else
@@ -1141,7 +1141,7 @@ class ConvolutionOperator1d
       end
     end
     @vars.push @y = Real("y",:dir => options[:a_y] ? :inout : :out, :dim => @shape.dimy, :restrict => true)
-    if @kinetic and @transpose != 0 then
+    if @kinetic && @transpose != 0 then
       @vars.push @y2 =  Real("y2", :dir => :out, :dim => @shape.dimy, :restrict => true)
     end
     @vars.push @a = Real("a",:dir => :in) if options[:a]
@@ -1244,7 +1244,7 @@ class ConvolutionOperator1d
       end
     end
     vars.push(ANArray::new(type, align, *varsout))
-    vars.push(ANArray::new(type, align, *varsout)) if @kinetic and @transpose != 0
+    vars.push(ANArray::new(type, align, *varsout)) if @kinetic && @transpose != 0
     #accessory scalars
     nscal=0
     nscal+=1 if @a
@@ -1261,7 +1261,7 @@ class ConvolutionOperator1d
     p_best_optim = nil
     already_tested = {}
     opt_space.each{ |optim|
-      next if optim[:unrolled_dim_index] == 1 and @shape.length < 3
+      next if optim[:unrolled_dim_index] == 1 && @shape.length < 3
       #next if optim[:mod_arr] and @bc.free?
       #puts optim
       kernel = CKernel::new
@@ -1364,7 +1364,7 @@ class ConvolutionOperator1d
           pr @filter.get_mods[@l] === modulo(@l, @shape.dim_n)
         }
       end
-      if @options[:dot_in] and @shape.vector_length > 1 then
+      if @options[:dot_in] && @shape.vector_length > 1 then
         decl @dot_in_tmp = @dot_in.copy("dot_in_tmp", :vector_length => @shape.vector_length, :dir => nil, :direction => nil)
       else
         @dot_in_tmp = @dot_in
@@ -1501,7 +1501,7 @@ class GenericConvolutionOperator1d
     @vars.push @y     = Real("y",  :dir => options[:a_y] ? :inout : :out, :restrict => true, :dim => [ Dim() ] )
     @vars.push @a = Real("a",:dir => :in) if options[:a]
     @vars.push @a_x = Real("a_x",:dir => :in) if options[:a_x]
-    @vars.push @a_y = Real("a_y",:dir => :in) if options[:a_y] and options[:a_y] != 1.0
+    @vars.push @a_y = Real("a_y",:dir => :in) if options[:a_y] && options[:a_y] != 1.0
     @vars.push @dot_in = Real("dot_in",:dir => :out) if options[:dot_in]
     @cost = Int( "cost", :dir => :out )
 
@@ -1518,7 +1518,7 @@ class GenericConvolutionOperator1d
     opt_base = []
     opt_base.push( { :a   => @options[:a]   } ) if @options[:a]
     opt_base.push( { :a_x => @options[:a_x] } ) if @options[:a_x]
-    opt_base.push( { :a_y => @options[:a_y] } ) if @options[:a_y] and @options[:a_y] != 1.0
+    opt_base.push( { :a_y => @options[:a_y] } ) if @options[:a_y] && @options[:a_y] != 1.0
     opts_bases = []
     (0..opt_base.length).each { |indx|
       opt_base.combination(indx) { |c|
@@ -1526,7 +1526,7 @@ class GenericConvolutionOperator1d
         c.each { |item|
           ch.update(item)
         }
-        ch.update( { :a_y => @options[:a_y] } ) if @options[:a_y] and @options[:a_y] == 1.0
+        ch.update( { :a_y => @options[:a_y] } ) if @options[:a_y] && @options[:a_y] == 1.0
         opts_bases.push(ch)
       }
     }
@@ -1631,7 +1631,7 @@ class GenericConvolutionOperator1d
       decl i, ndat_left, ndat_right
       decl tmp_cost if util == :cost
       decl nti, nto, j if @narr
-      if @narr and @ld then
+      if @narr && @ld then
         pr nti === @nx[@idim]
         pr nto === @ny[@idim]
       elsif @narr then
@@ -1673,7 +1673,7 @@ class GenericConvolutionOperator1d
         opts.delete(:a) if not a
         opts.delete(:a_x) if not a_x
         opts.delete(:a_y) if not a_y
-        opts.update( { :a_y => 1.0 } ) if @options[:a_y] and @options[:a_y] == 1.0
+        opts.update( { :a_y => 1.0 } ) if @options[:a_y] && @options[:a_y] == 1.0
         vars = []
         vars.push( @a ) if a
         vars.push( @a_x ) if a_x
@@ -1752,7 +1752,7 @@ class GenericConvolutionOperator1d
       pr If( @idim == 0 => lambda {
         pr ndat_right === 1
         pr For( i, 1, @ndim - 1 ) {
-          if @ld and util != :cost then
+          if @ld && util != :cost then
             pr ndat_right === ndat_right * @nx[i]
           else
             pr ndat_right === ndat_right * @dims[i]
@@ -1768,7 +1768,7 @@ class GenericConvolutionOperator1d
       }, @idim == @ndim - 1 => lambda {
         pr ndat_left === 1
         pr For( i, 0, @ndim - 2 ) {
-          if @ld and util != :cost then
+          if @ld && util != :cost then
             pr ndat_left === ndat_left * @nx[i]
           else
             pr ndat_left === ndat_left * @dims[i]
@@ -1785,14 +1785,14 @@ class GenericConvolutionOperator1d
         pr ndat_left === 1
         pr ndat_right === 1
         pr For( i, 0, @idim - 1 ) {
-          if @ld and util != :cost then
+          if @ld && util != :cost then
             pr ndat_left === ndat_left * @nx[i]
           else
             pr ndat_left === ndat_left * @dims[i]
           end
         }
         pr For( i, @idim + 1, @ndim - 1 ) {
-          if @ld and util != :cost then
+          if @ld && util != :cost then
             pr ndat_right === ndat_right * @nx[i]
           else
             pr ndat_right === ndat_right * @dims[i]
@@ -1903,9 +1903,9 @@ class GenericConvolutionOperator
         ndat *= dims_actual[i] if i != indx
       }
       ni_ndat = [ n[indx], ndat ]
-      ni_ndat.reverse! if @transpose == -1 or (@transpose == 0 and indx = n.length - 1 )
+      ni_ndat.reverse! if @transpose == -1 || (@transpose == 0 && indx = n.length - 1 )
       indexes = [ 1, 0]
-      indexes.reverse! if @transpose == -1 or (@transpose == 0 and indx = n.length - 1 )
+      indexes.reverse! if @transpose == -1 || (@transpose == 0 && indx = n.length - 1 )
       return [ni_ndat, indexes]
     }
     compute_ndat_ni_ndat2 = lambda { |indx|
@@ -2062,14 +2062,14 @@ class GenericConvolutionOperator
         vars2 = []
         opt = {}
         vars2.push( @a[indx] ) if @options[:a]
-        if init and @options[:a_x] then
+        if init && @options[:a_x] then
           vars2.push( @a_x )
           opt[:a_x] = @options[:a_x]
         end
-        if init and @options[:zero_out_work]
+        if init && @options[:zero_out_work]
           opt[:zero_out_work] = @options[:zero_out_work]
         end
-        if last and @options[:a_y] then
+        if last && @options[:a_y] then
           vars2.push( @a_y )
           opt[:a_y] = @options[:a_y]
         end
@@ -2279,7 +2279,7 @@ class ConvolutionOptimization
     @transpose = options[:transpose] if options[:transpose]
 
     @use_mod =  [ false ] * ndim
-    convolution.bc.each_with_index { |bc,ind| @use_mod[ind] = (not bc.free?) } if options[:use_mod]
+    convolution.bc.each_with_index { |bc,ind| @use_mod[ind] = !bc.free? } if options[:use_mod]
 
     @tt_arr = convolution.dims.collect { false }
     if options[:tt_arr] then
@@ -2297,7 +2297,7 @@ class ConvolutionOptimization
 
     @dim_order=(0...ndim).collect{|i| i}
     @dim_order.reverse!  if @transpose == -1
-    @dim_order = options[:dim_order] if options[:dim_order] and @transpose == 0
+    @dim_order = options[:dim_order] if options[:dim_order] && @transpose == 0
 
     if @transpose ==1 then
       unrolled_dim = [ 1 ] * ndim
