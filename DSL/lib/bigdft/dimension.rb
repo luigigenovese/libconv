@@ -40,7 +40,7 @@ module BigDFT
     end
 
     def s1_shape(padding = 0)
-      [ s1_ld(padding), 2]
+      [ s1_ld(padding)/2, 2]
     end
 
     alias s0_dim s1_dim
@@ -50,7 +50,7 @@ module BigDFT
     end
 
     def s0_shape(padding = 0)
-      [ 2, s0_ld(padding) ]
+      [ 2, s0_ld(padding)/2 ]
     end
 
     def get_dim( space )

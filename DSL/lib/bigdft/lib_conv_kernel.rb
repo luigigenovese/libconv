@@ -73,7 +73,7 @@ module BigDFT
       when GenericConvolution::BC::GROW
         [ in_dim, in_dim, in_dim + buffer_increment ]
       when GenericConvolution::BC::SHRINK
-        [ in_dim - buffer_increment, in_dim, in_dim - buffer_increment ]
+        [ in_dim, in_dim, in_dim - buffer_increment ]
       else
         raise "Unsupported BC: #{bc}"
       end
@@ -86,7 +86,7 @@ module BigDFT
       when GenericConvolution::BC::GROW
         [ out_dim - buffer_increment, out_dim - buffer_increment, out_dim ]
       when GenericConvolution::BC::SHRINK
-        [ out_dim, out_dim + buffer_increment, out_dim ]
+        [ out_dim + buffer_increment, out_dim + buffer_increment, out_dim ]
       else
         raise "Unsupported BC: #{bc}"
       end
@@ -192,7 +192,7 @@ module BigDFT
     end
 
     def buffer_increment
-      @filter.length / 2 - 1
+      @filter.length - 2
     end
 
     def dimension_space
