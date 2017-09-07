@@ -11,11 +11,7 @@ module BigDFT
     end
 
     def r_dim
-      if @space == :r then
-        @dim
-      else
-      	@dim * 2
-      end
+      @dim
     end
 
     def r_ld(padding = 0)
@@ -26,13 +22,13 @@ module BigDFT
       [ r_ld(padding) ]
     end
 
+    def r_data_shape
+      [ r_dim ]
+    end
+
     def s1_dim
-      if @space == :r then
-        raise "Invalid dimension #{@dim} for s1" if @dim%2 != 0
-        @dim / 2
-      else
-        @dim
-      end
+      raise "Invalid dimension #{@dim} for s1" if @dim%2 != 0
+      @dim
     end
 
     def s1_ld(padding = 0)
@@ -41,6 +37,10 @@ module BigDFT
 
     def s1_shape(padding = 0)
       [ s1_ld(padding)/2, 2]
+    end
+
+    def s1_data_shape
+      [ s1_dim/2, 2 ]
     end
 
     alias s0_dim s1_dim
@@ -53,6 +53,10 @@ module BigDFT
       [ 2, s0_ld(padding)/2 ]
     end
 
+    def s0_data_shape
+      [ 2, s0_dim/2 ]
+    end
+
     def get_dim( space )
       send("#{space}_dim")
     end
@@ -63,6 +67,10 @@ module BigDFT
 
     def get_shape(space, padding = 0)
       send("#{space}_shape", padding)
+    end
+
+    def get_data_shape(space)
+      send("#{space}_data_shape")
     end
 
     private

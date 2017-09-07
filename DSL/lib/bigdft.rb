@@ -1,4 +1,4 @@
-require_relative '../../boast/GenericConvolution2'
+require_relative '../../boast/GenericConvolution3'
 require_relative '../../boast/WaveletFilters'
 require_relative 'bigdft/dimension'
 require_relative 'bigdft/data_space'

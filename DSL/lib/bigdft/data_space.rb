@@ -7,20 +7,20 @@ module BigDFT
     attr_reader :precision
     attr_reader :alignment
 
-    def initialize(*ld, **options)
+    def initialize(*shape, **options)
       @precision = options.fetch(:precision, 8)
       @alignment = options.fetch(:alignment, 32)
-      @dimensions = ld.dup
-      @dimension = dimensions.length
+      @dimensions = shape.dup
+      @dimension = shape.length
       case @precision
       when 4
         type = NArray::SFLOAT
       when 8
         type = NArray::FLOAT
       else
-        raise "Unsupported precision (#{type})!"
+        raise "Unsupported precision (#{@precision})!"
       end
-      @data = ANArray.new(type, @alignment, *dimensions)
+      @data = ANArray.new(type, @alignment, *@dimensions)
       @data.random! if options[:random]
     end
 

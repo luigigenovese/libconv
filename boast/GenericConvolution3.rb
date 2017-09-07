@@ -111,7 +111,7 @@ class Filter
       if side == :begin then
         loop_start = max(-iterator, lowfil)
       elsif side == :end then
-        loop_end   = min(upfil, dim - 1 - iterator)
+        loop_end   = min(upfil, dim - iterator)
       end
     end
     return [loop_start, loop_end]
@@ -353,6 +353,10 @@ class WaveletFilter < Filter
 
     @length = @low.fil_array.length
     @name = name
+  end
+
+  def odd_s0_size?
+    return @convolution && ( @bc && (@bc.grow? || @bc.shrink?) ) && @convlution.length % 2 == 0
   end
 
   def combine_wavelet_filters(name,fil_array,convolution,convcenter)
@@ -982,7 +986,11 @@ class Convolution1dShape
 
   def input_filter_indexes( unroll_index, filter_index, side )
     i_in = index_unroll( unroll_index )
-    i_in[@processed_dim_index] = @filter.input_filter_index( i_in[@processed_dim_index], filter_index, side, @processed_dim )
+    if @filter.kind_of?( WaveletFilter )
+      i_in[@processed_dim_index] = @filter.input_filter_index( i_in[@processed_dim_index], filter_index, side, @processed_dim/2 )
+    else
+      i_in[@processed_dim_index] = @filter.input_filter_index( i_in[@processed_dim_index], filter_index, side, @processed_dim )
+    end
     if @filter.kind_of?( WaveletFilter ) then
       return @filter.convert_input_indexes(i_in, @processed_dim_index) if @filter.kind_of?( WaveletFilter )
     else
@@ -1361,7 +1369,11 @@ class ConvolutionOperator1d
       if @filter.get_mods then
         decl @filter.get_mods
         pr For(@l, @filter.get_mods_lower, @filter.get_mods_upper) {
-          pr @filter.get_mods[@l] === modulo(@l, @shape.dim_n)
+          if @filter.kind_of?(WaveletFilter) then
+            pr @filter.get_mods[@l] === modulo(@l, @shape.dim_n/2)
+          else
+            pr @filter.get_mods[@l] === modulo(@l, @shape.dim_n)
+          end
         }
       end
       if @options[:dot_in] && @shape.vector_length > 1 then
@@ -1463,7 +1475,7 @@ class ConvolutionOperator1d
 
     init_values(tlen)
 
-    loop_start, loop_end = @filter.get_loop_start_end( side, @shape.processed_dim, @shape.iterators[@shape.processed_dim_index] )
+    loop_start, loop_end = @filter.get_loop_start_end( side, @shape.line_end, @shape.iterators[@shape.processed_dim_index] )
 
     pr For( @l, loop_start, loop_end, :unroll => @filter.unroll_inner ) {
       @filter.set_filter_val(@l, :side => side, :position => iters[@shape.processed_dim_index], :dim => @shape.processed_dim)

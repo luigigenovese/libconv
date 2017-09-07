@@ -35,6 +35,8 @@ module BigDFT
     attr_reader :kernel
     attr_reader :op
     attr_reader :filter
+    attr_reader :default_options
+
     def initialize(conv_operation, op, optims)
       @op = op
       if BigDFT.from_cache and File.exist?(".cache/#{conv_operation.procedure_name}.#{RbConfig::CONFIG['DLEXT']}")
@@ -171,6 +173,7 @@ module BigDFT
     def initialize(filter, op, optims = BigDFT.optims)
       @filter = filter
       conv_operation = GenericConvolution::GenericConvolutionOperator1d.new(filter, ld: true, narr: true, a_x: true, a_y: true, a: true)
+      @default_options = { narr: 1, a_x: 0.0, a_y: 0.0, a: 1.0 }
       super( conv_operation, op, optims )
     end
 
@@ -182,12 +185,29 @@ module BigDFT
       :r
     end
 
+    def run(idim, bc, source, target, **options)
+      opts = @default_options.merge(options)
+      @kernel.run(source.system.dimension,
+                  idim,
+                  source.dimensions,
+                  bc,
+                  source.leading_dimensions,
+                  target.leading_dimensions,
+                  opts[:narr],
+                  source.data_space.data,
+                  target.data_space.data,
+                  opts[:a],
+                  opts[:a_x],
+                  opts[:a_y])
+    end
+
   end
 
   class WaveletKernel1d < LibConvKernel
     def initialize(wavelet_filter, direction, op, optims = BigDFT.optims)
       @filter = wavelet_filter
       conv_operation = GenericConvolution::GenericConvolutionOperator1d.new(wavelet_filter, wavelet: direction, a: true, a_y: true, ld: true, narr: true)
+      @default_options = { narr: 1, a_y: 0.0, a: 1.0 }
       super( conv_operation, op, optims )
     end
 
@@ -197,6 +217,21 @@ module BigDFT
 
     def dimension_space
       :s1
+    end
+
+    def run(idim, bc, source, target, **options)
+      opts = @default_options.merge(options)
+      @kernel.run(source.system.dimension,
+                  idim,
+                  source.dimensions,
+                  bc,
+                  source.leading_dimensions,
+                  target.leading_dimensions,
+                  opts[:narr],
+                  source.data_space.data,
+                  target.data_space.data,
+                  opts[:a],
+                  opts[:a_y])
     end
 
   end

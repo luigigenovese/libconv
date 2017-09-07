@@ -49,6 +49,7 @@ module BigDFT
       @dimension            = reference_dimensions.length
       @spaces               = options.fetch(:spaces, { s1: S1, s0: S0, r: R })
       @reference_space      = reference_space
+      raise "Invalid reference dimensions #{reference_dimensions} in #{reference_space}!" if [:s1, :s0].include?( reference_space ) && !@reference_dimensions.all?(&:even?)
       @boundary_conditions  = boundary_conditions
       @padding              = options.fetch(:padding, { s1: 4, s0: 4, r: 4 })
       raise "Boundary conditions and reference dimensions must have the same arity (#{boundary_conditions.length} != #{@dimension})!" if boundary_conditions.length != @dimension
@@ -91,6 +92,13 @@ module BigDFT
       }.reduce([], :+)
     end
 
+    def data_shapes(space)
+      space = get_space(space)
+      dims = dimensions(space)
+      dims.each_with_index.collect { |d,i|
+        Dimension::new(d, space[i]).get_data_shape(space[i])
+      }.reduce([], :+)
+    end
 
     def leading_dimensions(space)
       space = get_space(space)
