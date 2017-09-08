@@ -12,7 +12,8 @@ module BOAST
       @data_space = DataSpace::new(*@system.shapes(@spaces), random: options[:random] )
     end
 
-    def to(*target_spaces)
+    def to(target_spaces)
+      target_spaces = [target_spaces].flatten
       target_spaces *= @system.dimension if target_spaces.length == 1
       raise "Invalid space dimension #{target_spaces.length}!" if target_spaces.length != @system.dimension
       source_spaces = @spaces.dup
