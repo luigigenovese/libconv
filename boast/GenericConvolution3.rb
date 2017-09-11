@@ -897,6 +897,7 @@ class Convolution1dShape
 
   attr_reader :dimx, :dimy
 
+  attr_reader :input_line_start, :input_line_end
   attr_reader :line_start, :line_end
   attr_reader :border_low, :border_high
 
@@ -1068,6 +1069,8 @@ class Convolution1dShape
   def compute_inner_loop_boundaries
     d = @dim_n
     d = d / 2 if @filter.kind_of?( WaveletFilter )
+    @input_line_start = 0
+    @input_line_end = d - 1
     if @bc.grow? then
       @line_start = -@filter.upfil
       @line_end = d - @filter.lowfil - 1
@@ -1475,7 +1478,7 @@ class ConvolutionOperator1d
 
     init_values(tlen)
 
-    loop_start, loop_end = @filter.get_loop_start_end( side, @shape.line_end, @shape.iterators[@shape.processed_dim_index] )
+    loop_start, loop_end = @filter.get_loop_start_end( side, @shape.input_line_end, @shape.iterators[@shape.processed_dim_index] )
 
     pr For( @l, loop_start, loop_end, :unroll => @filter.unroll_inner ) {
       @filter.set_filter_val(@l, :side => side, :position => iters[@shape.processed_dim_index], :dim => @shape.processed_dim)
