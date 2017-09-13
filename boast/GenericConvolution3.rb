@@ -441,29 +441,6 @@ class WaveletFilter < Filter
     return bc
   end
 
-  def fill_even_and_odd_filters
-    if @low_even then
-      return #just do it the first time
-    end
-    if @convolution then
-      if @bc && (@bc.grow? || @bc.shrink?) then
-        convcntr=@convolution.center-1
-      else
-        convcntr=@convolution.center
-      end
-      #must rebuild the low and the high with shifted center
-      @center, @low, @high = self.combine_wavelet_filters(@name,@fil_array,@convolution,convcntr)
-    end
-    if @reverse
-      cntr=@low.fil_array.length - @center - 1
-    else
-      cntr=@center
-    end
-    @low_even, @low_odd, @high_even, @high_odd = split_filters(name,@low.fil_array,@high.fil_array,@reverse,cntr/2)
-  end
-
-  private :fill_even_and_odd_filters
-
   def lowfil(wavelet=nil)
     return @low_even.lowfil
   end
@@ -535,6 +512,29 @@ class WaveletFilterDecompose < WaveletFilter
     #@low_even, @low_odd, @high_even, @high_odd = split_filters(name,@low.fil_array,@high.fil_array,false,@center/2)
 
   end
+
+  def fill_even_and_odd_filters
+    if @low_even then
+      return #just do it the first time
+    end
+    if @convolution then
+      if @bc && @bc.shrink? then
+        convcntr=@convolution.center-1
+      else
+        convcntr=@convolution.center
+      end
+      #must rebuild the low and the high with shifted center
+      @center, @low, @high = self.combine_wavelet_filters(@name,@fil_array,@convolution,convcntr)
+    end
+    if @reverse
+      cntr=@low.fil_array.length - @center - 1
+    else
+      cntr=@center
+    end
+    @low_even, @low_odd, @high_even, @high_odd = split_filters(name,@low.fil_array,@high.fil_array,@reverse,cntr/2)
+  end
+
+  private :fill_even_and_odd_filters
 
   def init_tt
     #try to modify tt scalars into arrays of size unroll
@@ -627,6 +627,29 @@ class WaveletFilterRecompose < WaveletFilter
     #@low_even, @low_odd, @high_even, @high_odd = split_filters(name,@low.fil_array,@high.fil_array,true,(@low.fil_array.length - @center - 1)/2)
 
   end
+
+  def fill_even_and_odd_filters
+    if @low_even then
+      return #just do it the first time
+    end
+    if @convolution then
+      if @bc && @bc.grow? then
+        convcntr=@convolution.center-1
+      else
+        convcntr=@convolution.center
+      end
+      #must rebuild the low and the high with shifted center
+      @center, @low, @high = self.combine_wavelet_filters(@name,@fil_array,@convolution,convcntr)
+    end
+    if @reverse
+      cntr=@low.fil_array.length - @center - 1
+    else
+      cntr=@center
+    end
+    @low_even, @low_odd, @high_even, @high_odd = split_filters(name,@low.fil_array,@high.fil_array,@reverse,cntr/2)
+  end
+
+  private :fill_even_and_odd_filters
 
   def init_tt
     #try to modify tt scalars into arrays of size unroll
