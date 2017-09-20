@@ -178,7 +178,7 @@ module BigDFT
     end
 
     def buffer_increment
-      @filter.length - 1
+      @filter.buffer_increment
     end
 
     def dimension_space
@@ -212,7 +212,7 @@ module BigDFT
     end
 
     def buffer_increment
-      @filter.length - 2
+      @filter.buffer_increment
     end
 
     def dimension_space
@@ -221,6 +221,18 @@ module BigDFT
 
     def run(idim, bc, source, target, **options)
       opts = @default_options.merge(options)
+#      puts @kernel.procedure.name
+#      puts([source.system.dimension,
+#                  idim,
+#                  source.dimensions,
+#                  bc,
+#                  source.leading_dimensions,
+#                  target.leading_dimensions,
+#                  opts[:narr],
+#                  source.data_space.data,
+#                  target.data_space.data,
+#                  opts[:a],
+#                  opts[:a_y]].collect(&:inspect))
       @kernel.run(source.system.dimension,
                   idim,
                   source.dimensions,

@@ -28,8 +28,8 @@ class TestSystem < Minitest::Test
   def test_dimensions
     assert_equal([42, 28, 24], @s1.dimensions(:s1))
     assert_equal([42 + 14, 28 + 14, 24 + 14], @s1.dimensions(:s0))
-    assert_equal([42 + 30, 28 + 30, 24 + 30], @s1.dimensions(:r))
-    assert_equal([42, 28 + 14, 24 + 30], @s1.dimensions([:s1, :s0, :r]))
+    assert_equal([42 + 29, 28 + 29, 24 + 29], @s1.dimensions(:r))
+    assert_equal([42, 28 + 14, 24 + 29], @s1.dimensions([:s1, :s0, :r]))
 
     assert_equal([42, 28, 24], @s2.dimensions(:s0))
     assert_equal([42 - 14, 28, 24 - 14], @s2.dimensions(:s1))
@@ -38,19 +38,19 @@ class TestSystem < Minitest::Test
 
     assert_equal([99, 56, 61], @s3.dimensions(:r))
     assert_equal([99-15, 56, 61-15], @s3.dimensions(:s0))
-    #assert_equal([(99-15)/2, 56/2, (61-15)/2], @s3.dimensions(:s1))
+    assert_equal([99-29, 56, 61-29], @s3.dimensions(:s1))
 
     assert_equal([100, 28, 54], @s4.dimensions(:s1))
-    assert_equal([100-14, 28, 54 - 14], @s4.dimensions(:s0))
-    assert_equal([100-30, 28, 54 - 30], @s4.dimensions(:r))
-    assert_equal([100, 28, 54 - 30], @s4.dimensions([:s1, :s0, :r]))
+    assert_equal([100- 14, 28, 54 - 14], @s4.dimensions(:s0))
+    assert_equal([100- 29, 28, 54 - 29], @s4.dimensions(:r))
+    assert_equal([100, 28, 54 - 29], @s4.dimensions([:s1, :s0, :r]))
   end
 
   def test_shapes
     assert_equal([21 + 1, 2, 14, 2, 12, 2], @s1.shapes(:s1))
     assert_equal([2, 21 + 7, 2, 14 + 7 + 1, 2, 12 + 7 + 1], @s1.shapes(:s0))
-    assert_equal([42 + 30, 28 + 30 + 2, 24 + 30 + 2], @s1.shapes(:r))
-    assert_equal([21 + 1, 2, 2, 14 + 7 + 1, 24 + 30 + 2], @s1.shapes([:s1, :s0, :r]))
+    assert_equal([42 + 29 + 1, 28 + 29 + 3, 24 + 29 + 3], @s1.shapes(:r))
+    assert_equal([21 + 1, 2, 2, 14 + 7 + 1, 24 + 29 + 3], @s1.shapes([:s1, :s0, :r]))
 
     assert_equal([2, 22, 2, 14, 2, 12], @s2.shapes(:s0))
     assert_equal([21 - 7, 2, 14, 2, 12 - 7 + 1, 2], @s2.shapes(:s1))
@@ -59,15 +59,15 @@ class TestSystem < Minitest::Test
 
     assert_equal([50, 2, 14, 2, 27 + 1, 2], @s4.shapes(:s1))
     assert_equal([2, 50 - 7 + 1, 2, 14, 2, 27 - 7], @s4.shapes(:s0))
-    assert_equal([100 - 30 + 2, 28, 54 - 30], @s4.shapes(:r))
-    assert_equal([50, 2, 2, 14, 54 - 30], @s4.shapes([:s1, :s0, :r]))
+    assert_equal([100 - 29 + 1, 28, 54 - 29 + 3], @s4.shapes(:r))
+    assert_equal([50, 2, 2, 14, 54 - 29 + 3], @s4.shapes([:s1, :s0, :r]))
   end
 
   def test_leading_dimensions
     assert_equal([42 + 2, 28, 24], @s1.leading_dimensions(:s1))
     assert_equal([42 + 14, 28 + 14 + 2, 24 + 14 + 2], @s1.leading_dimensions(:s0))
-    assert_equal([42 + 30, 28 + 30 + 2, 24 + 30 + 2], @s1.leading_dimensions(:r))
-    assert_equal([42 + 2, 28 + 14 + 2, 24 + 30 +2], @s1.leading_dimensions([:s1, :s0, :r]))
+    assert_equal([42 + 29 + 1, 28 + 29 + 3, 24 + 29 + 3], @s1.leading_dimensions(:r))
+    assert_equal([42 + 2, 28 + 14 + 2, 24 + 29 + 3], @s1.leading_dimensions([:s1, :s0, :r]))
 
     assert_equal([42 + 2, 28, 24], @s2.leading_dimensions(:s0))
     assert_equal([42 - 14, 28, 24 - 14 + 2], @s2.leading_dimensions(:s1))
@@ -76,8 +76,8 @@ class TestSystem < Minitest::Test
 
     assert_equal([100, 28, 54 + 2], @s4.leading_dimensions(:s1))
     assert_equal([100 - 14 + 2, 28, 54 - 14], @s4.leading_dimensions(:s0))
-    assert_equal([100 - 30 + 2, 28, 54 - 30], @s4.leading_dimensions(:r))
-    assert_equal([100, 28, 54 - 30], @s4.leading_dimensions([:s1, :s0, :r]))
+    assert_equal([100 - 29 + 1, 28, 54 - 29 + 3], @s4.leading_dimensions(:r))
+    assert_equal([100, 28, 54 - 29 + 3], @s4.leading_dimensions([:s1, :s0, :r]))
   end
 
 end

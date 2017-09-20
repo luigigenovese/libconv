@@ -137,6 +137,34 @@ class Filter
     return @length * 2
   end
 
+  def buffer_increment
+    return @length - 1
+  end
+
+  def transform_dim_n(dim_n)
+    return dim_n
+  end
+
+  def transform_dim_n_input(dim_n)
+    return dim_n
+  end
+
+  def convert_input_filter_indexes(indexes, processed_index)
+    return indexes
+  end
+
+  def convert_input_indexes(indexes, processed_index)
+    return indexes
+  end
+
+  def convert_output_indexes(indexes, processed_index)
+    return indexes
+  end
+
+  def compute_mod(l, dim_n)
+    @mods[l] === FuncCall("modulo",l, dim_n)
+  end
+
 end
 
 class ConvolutionFilter < Filter
@@ -149,17 +177,33 @@ class ConvolutionFilter < Filter
   attr_reader :lowfil, :upfil
 
   def initialize(name, filt, center)
+    @name = name
+    @reverse = false
     @fil_array = filt.dup
     arr = ConstArray::new(@fil_array,Real)
-    @fil = Real("#{name}_fil",:constant => arr,:dim => [ Dim((-center),(@fil_array.length - center -1)) ])
-    @lowfil_val = -center
-    @upfil_val = @fil_array.length - center - 1
+    @center = center
+    @lowfil_val = -@center
+    @upfil_val = @fil_array.length - @center - 1
+    @fil = Real("#{name}_fil",:constant => arr,:dim => [ Dim(@lowfil_val, @upfil_val) ])
     @lowfil = Int("lowfil",:constant => @lowfil_val)
     @upfil = Int("upfil",:constant => @upfil_val)
-    @center = center
-    @name = name
     @base_name = "s0s0"
     @length = @fil_array.length
+  end
+
+  alias iterator_lowfil lowfil
+  alias iterator_upfil upfil
+
+  def reverse!
+    @reverse = !@reverse
+    @fil_array.reverse!
+    arr = ConstArray::new(@fil_array,Real)
+    @center = @fil_array.length - @center - 1
+    @lowfil_val = -@center
+    @upfil_val = @fil_array.length - @center - 1
+    @fil = Real("#{name}_fil#{@reverse ? "_r" : ""}",:constant => arr,:dim => [ Dim(@lowfil_val, @upfil_val) ])
+    @lowfil = Int("lowfil",:constant => @lowfil_val)
+    @upfil = Int("upfil",:constant => @upfil_val)
   end
 
   def init_tt
@@ -183,7 +227,7 @@ class ConvolutionFilter < Filter
     pr @filter_val === Set(@fil[index], @tt[0])
   end
 
-  def compute_values( tt_ind, indexes, data_in)
+  def compute_values( tt_ind, indexes, data_in, side)
     out = @tt[tt_ind]
     pr out === FMA(Load(data_in[*indexes].set_align(out.type.total_size), out), @filter_val, out) # + @x[*i_in]*@filter.fil[l]
   end
@@ -355,8 +399,20 @@ class WaveletFilter < Filter
     @name = name
   end
 
-  def odd_s0_size?
-    return @convolution && ( @bc && (@bc.grow? || @bc.shrink?) ) && @convlution.length % 2 == 0
+  def buffer_increment
+    return @fil_array.length - 2 + ( @convolution ? @convolution.length - 1 : 0 )
+  end
+
+  def odd_gs_s0_size?
+    return @convolution && ( @bc && (@bc.grow? || @bc.shrink?) ) && @convolution.length % 2 == 0
+  end
+
+  def transform_dim_n(dim_n)
+    return dim_n/2
+  end
+
+  def transform_dim_n_input(dim_n)
+    return dim_n/2
   end
 
   def combine_wavelet_filters(name,fil_array,convolution,convcenter)
@@ -449,22 +505,27 @@ class WaveletFilter < Filter
     return @low_even.upfil
   end
 
+  alias iterator_lowfil lowfil
+  alias iterator_upfil upfil
+
   def init_filter_val
     return (0..3).collect { |index| @tt[0][0].copy("filter_val#{index}") }
   end
 
-  def compute_values( tt_ind, indexes, data)
+  def compute_values( tt_ind, indexes, data, side)
+    no_odd = (side == :last || side == :center_last)
     out_even = @tt[0][tt_ind]
     out_odd  = @tt[1][tt_ind]
     i_in0 = indexes[0].flatten
     i_in1 = indexes[1].flatten
     pr out_even === FMA(Load(data[*i_in0], out_even), @filter_val[0], out_even)
-    pr out_odd  === FMA(Load(data[*i_in0], out_odd ), @filter_val[1], out_odd )
+    pr out_odd  === FMA(Load(data[*i_in0], out_odd ), @filter_val[1], out_odd ) unless no_odd
     pr out_even === FMA(Load(data[*i_in1], out_even), @filter_val[2], out_even)
-    pr out_odd  === FMA(Load(data[*i_in1], out_odd ), @filter_val[3], out_odd )
+    pr out_odd  === FMA(Load(data[*i_in1], out_odd ), @filter_val[3], out_odd ) unless no_odd
   end
 
   def post_process_and_store_values( tt_ind, indexes, data, transpose, options = {} )
+    no_odd = (options[:side] == :last || options[:side] == :center_last)
     out_even = @tt[0][tt_ind]
     out_odd  = @tt[1][tt_ind]
     i_out0 = indexes[0].rotate(transpose).flatten
@@ -472,19 +533,19 @@ class WaveletFilter < Filter
 
     if options[:a] then
       pr out_even === out_even * Set( options[:a], out_even)
-      pr out_odd  === out_odd  * Set( options[:a], out_odd )
+      pr out_odd  === out_odd  * Set( options[:a], out_odd ) unless no_odd
     end
 
     if options[:accumulate] then
       pr out_even === Load(data[*i_out0], out_even) + out_even
-      pr out_odd  === Load(data[*i_out1], out_odd ) + out_odd
+      pr out_odd  === Load(data[*i_out1], out_odd ) + out_odd unless no_odd
     elsif options[:a_y] then
       pr out_even === FMA(Load(data[*i_out0], out_even), Set(options[:a_y], out_even), out_even)
-      pr out_odd  === FMA(Load(data[*i_out1], out_odd ), Set(options[:a_y], out_odd ), out_odd )
+      pr out_odd  === FMA(Load(data[*i_out1], out_odd ), Set(options[:a_y], out_odd ), out_odd ) unless no_odd
     end
 
     pr data[*i_out0] === out_even
-    pr data[*i_out1] === out_odd
+    pr data[*i_out1] === out_odd unless no_odd
   end
 
   def set_zero_tt( tt_ind )
@@ -513,12 +574,23 @@ class WaveletFilterDecompose < WaveletFilter
 
   end
 
+  def transform_dim_n(dim_n)
+    if @convolution && @convolution.length % 2 == 0 && @bc then
+      if @bc.grow? then
+        return (dim_n - 1)/2
+      elsif @bc.shrink? then
+        return (dim_n + 1)/2
+      end
+    end
+    return super
+  end
+
   def fill_even_and_odd_filters
     if @low_even then
       return #just do it the first time
     end
     if @convolution then
-      if @bc && @bc.shrink? then
+      if @convolution.length % 2 == 0 && @bc && @bc.shrink? then
         convcntr=@convolution.center-1
       else
         convcntr=@convolution.center
@@ -532,9 +604,56 @@ class WaveletFilterDecompose < WaveletFilter
       cntr=@center
     end
     @low_even, @low_odd, @high_even, @high_odd = split_filters(name,@low.fil_array,@high.fil_array,@reverse,cntr/2)
+    if odd_gs_s0_size?
+      if @bc.shrink?
+        @low = ConvolutionFilter::new(@low.name, @low.fil_array[0..-2], @low.center)
+        @high = ConvolutionFilter::new(@high.name, @high.fil_array[0..-2], @high.center)
+      elsif @bc.grow?
+        @low = ConvolutionFilter::new(@low.name, @low.fil_array[1..-1], @low.center-1)
+        @high = ConvolutionFilter::new(@high.name, @high.fil_array[1..-1], @high.center-1)
+      end
+    end
+    if @reverse
+      @low.reverse!
+      @high.reverse!
+    end
+    return self
   end
 
   private :fill_even_and_odd_filters
+
+  def lowfil(wavelet=nil)
+    return @low.lowfil
+  end
+
+  def upfil(wavelet=nil)
+    return @low.upfil
+  end
+
+  def iterator_lowfil
+    return @low_even.lowfil
+  end
+
+  def iterator_upfil
+    return @low_even.upfil
+  end
+
+  def get_mods_lower
+    return @low.lowfil - @low.upfil
+  end
+
+  def get_mods_upper
+    return @low.upfil - @low.lowfil - 1
+  end
+
+  def decl_filters
+    decl low.fil
+    decl high.fil
+  end
+
+  def init_filter_val
+    return (0..1).collect { |index| @tt[0][0].copy("filter_val#{index}") }
+  end
 
   def init_tt
     #try to modify tt scalars into arrays of size unroll
@@ -548,10 +667,16 @@ class WaveletFilterDecompose < WaveletFilter
   end
 
   def set_filter_val( index, options = {} )
-    pr @filter_val[0] === Set(@low_even.fil[index], @tt[0][0])
-    pr @filter_val[1] === Set(@high_even.fil[index], @tt[0][0])
-    pr @filter_val[2] === Set(@low_odd.fil[index], @tt[0][0])
-    pr @filter_val[3] === Set(@high_odd.fil[index], @tt[0][0])
+    pr @filter_val[0] === Set(@low.fil[index], @tt[0][0])
+    pr @filter_val[1] === Set(@high.fil[index], @tt[0][0])
+  end
+
+  def compute_values( tt_ind, indexes, data, side)
+    out_even = @tt[0][tt_ind]
+    out_odd  = @tt[1][tt_ind]
+    i_in0 = indexes.flatten
+    pr out_even === FMA(Load(data[*i_in0], out_even), @filter_val[0], out_even)
+    pr out_odd  === FMA(Load(data[*i_in0], out_odd ), @filter_val[1], out_odd )
   end
 
   def get_input_dim_std( dim )
@@ -563,11 +688,15 @@ class WaveletFilterDecompose < WaveletFilter
   end
 
   def get_input_dim_shrink( dim )
-    [ Dim( lowfil*2, dim + lowfil*2 - 1 ) ]
+    [ Dim( lowfil, dim + lowfil - 1 ) ]
   end
 
   def get_output_dim_shrink( dim )
-    [ Dim( 0, dim/2 - 1 + lowfil - upfil ), Dim(0, 1) ]
+    if odd_gs_s0_size?
+      [ Dim( 0, (dim+1)/2 - 1 + @low_even.lowfil - @low_even.upfil ), Dim(0, 1) ]
+    else
+      [ Dim( 0, dim/2 - 1 + @low_even.lowfil - @low_even.upfil ), Dim(0, 1) ]
+    end
   end
 
   alias get_input_dim_ld_shrink get_input_dim_shrink
@@ -577,13 +706,17 @@ class WaveletFilterDecompose < WaveletFilter
   alias get_input_dim_grow get_input_dim_std
 
   def get_output_dim_grow( dim )
-    return [ Dim( -upfil, dim/2 - lowfil - 1 ), Dim(0, 1) ]
+    if odd_gs_s0_size?
+      return [ Dim( -@low_even.upfil, (dim+1)/2 - @low_even.lowfil - 1 ), Dim(0, 1) ]
+    else
+      return [ Dim( -@low_even.upfil, dim/2 - @low_even.lowfil - 1 ), Dim(0, 1) ]
+    end
   end
 
   alias get_input_dim_ld_grow get_input_dim_std
 
   def get_output_dim_ld_grow( dim )
-    return [ Dim( -upfil, dim/2 - upfil - 1 ), Dim(0, 1) ]
+    return [ Dim( -@low_even.upfil, dim/2 - @low_even.upfil - 1 ), Dim(0, 1) ]
   end
 
   def convert_output_indexes(indexes, processed_index)
@@ -614,6 +747,29 @@ class WaveletFilterDecompose < WaveletFilter
     return tmp
   end
 
+  def input_filter_index( iterator, filter_index, side, dim )
+    return super( iterator * 2, filter_index, side, dim )
+  end
+
+  def get_loop_start_end( side, dim, iterator )
+    register_funccall("min")
+    register_funccall("max")
+    loop_start = lowfil
+    loop_end   = upfil
+    if @bc.free? then
+      if side == :begin then
+        loop_start = max(-(iterator*2), lowfil)
+      elsif side == :end then
+        loop_end   = min(upfil, dim - iterator*2)
+      end
+    end
+    return [loop_start, loop_end]
+  end
+
+  def transform_dim_n_input(dim_n)
+    return dim_n
+  end
+
 end
 
 class WaveletFilterRecompose < WaveletFilter
@@ -628,12 +784,21 @@ class WaveletFilterRecompose < WaveletFilter
 
   end
 
+  def transform_dim_n(dim_n)
+    if @convolution && @convolution.length % 2 == 0 && @bc then
+      if @bc.shrink? then
+        return dim_n/2 + 1
+      end
+    end
+    return super
+  end
+
   def fill_even_and_odd_filters
     if @low_even then
       return #just do it the first time
     end
     if @convolution then
-      if @bc && @bc.grow? then
+      if @convolution.length % 2 == 0 && @bc && @bc.grow? then
         convcntr=@convolution.center-1
       else
         convcntr=@convolution.center
@@ -682,7 +847,11 @@ class WaveletFilterRecompose < WaveletFilter
   end
 
   def get_output_dim_shrink( dim )
-    [ Dim( 0, dim - 1 + lowfil*2 - upfil*2 ) ]
+    if odd_gs_s0_size?
+      [ Dim( 0, dim + lowfil*2 - upfil*2 ) ]
+    else
+      [ Dim( 0, dim - 1 + lowfil*2 - upfil*2 ) ]
+    end
   end
 
   def get_input_dim_ld_shrink( dim )
@@ -696,7 +865,11 @@ class WaveletFilterRecompose < WaveletFilter
   alias get_input_dim_grow get_input_dim_std
 
   def get_output_dim_grow( dim )
-    return [ Dim( -upfil*2, dim - lowfil*2 - 1 ) ]
+    if odd_gs_s0_size?
+      return [ Dim( -upfil*2, dim - lowfil*2 - 2 ) ]
+    else
+      return [ Dim( -upfil*2, dim - lowfil*2 - 1 ) ]
+    end
   end
 
   alias get_input_dim_ld_grow get_input_dim_std
@@ -731,6 +904,32 @@ class WaveletFilterRecompose < WaveletFilter
       end
     }
     return tmp
+  end
+
+  alias convert_input_filter_indexes convert_input_indexes
+
+  def input_filter_index( iterator, filter_index, side, dim )
+    return super( iterator, filter_index, side, dim/2 )
+  end
+
+  def get_loop_start_end( side, dim, iterator )
+    register_funccall("min")
+    register_funccall("max")
+    loop_start = lowfil
+    loop_end   = upfil
+    if @bc.free? then
+      if side == :begin then
+        loop_start = max(-iterator, lowfil)
+      elsif side == :end || side == :last then
+        loop_end   = min(upfil, dim - iterator)
+      end
+    end
+    loop_end -= 1 if side == :center_last
+    return [loop_start, loop_end]
+  end
+
+  def compute_mod(l, dim_n)
+    @mods[l] === FuncCall("modulo", l, dim_n / 2)
   end
 
 end
@@ -992,34 +1191,18 @@ class Convolution1dShape
 
   def output_indexes( unroll_index )
     i_out = index_unroll( unroll_index )
-    if @filter.kind_of?( WaveletFilter ) then
-      return @filter.convert_output_indexes(i_out, @processed_dim_index) if @filter.kind_of?( WaveletFilter )
-    else
-      return i_out
-    end
+    return @filter.convert_output_indexes(i_out, @processed_dim_index)
   end
 
   def input_indexes( unroll_index )
     i_in = index_unroll( unroll_index )
-    if @filter.kind_of?( WaveletFilter ) then
-      return @filter.convert_input_indexes(i_in, @processed_dim_index) if @filter.kind_of?( WaveletFilter )
-    else
-      return i_in
-    end
+    return @filter.convert_input_indexes(i_in, @processed_dim_index)
   end
 
   def input_filter_indexes( unroll_index, filter_index, side )
     i_in = index_unroll( unroll_index )
-    if @filter.kind_of?( WaveletFilter )
-      i_in[@processed_dim_index] = @filter.input_filter_index( i_in[@processed_dim_index], filter_index, side, @processed_dim/2 )
-    else
-      i_in[@processed_dim_index] = @filter.input_filter_index( i_in[@processed_dim_index], filter_index, side, @processed_dim )
-    end
-    if @filter.kind_of?( WaveletFilter ) then
-      return @filter.convert_input_indexes(i_in, @processed_dim_index) if @filter.kind_of?( WaveletFilter )
-    else
-      return i_in
-    end
+    i_in[@processed_dim_index] = @filter.input_filter_index( i_in[@processed_dim_index], filter_index, side, @processed_dim )
+    return @filter.convert_input_filter_indexes(i_in, @processed_dim_index)
   end
 
   private
@@ -1090,22 +1273,21 @@ class Convolution1dShape
   end
 
   def compute_inner_loop_boundaries
-    d = @dim_n
-    d = d / 2 if @filter.kind_of?( WaveletFilter )
+    d = @filter.transform_dim_n(@dim_n)
     @input_line_start = 0
-    @input_line_end = d - 1
+    @input_line_end = @filter.transform_dim_n_input(@dim_n) - 1
     if @bc.grow? then
-      @line_start = -@filter.upfil
-      @line_end = d - @filter.lowfil - 1
+      @line_start = -@filter.iterator_upfil
+      @line_end = d - @filter.iterator_lowfil - 1
     elsif @bc.shrink? then
       @line_start = 0
-      @line_end = d - 1 + @filter.lowfil - @filter.upfil
+      @line_end = d - 1 + @filter.iterator_lowfil - @filter.iterator_upfil
     else
       @line_start = 0
       @line_end = d - 1
     end
-    @border_low = -@filter.lowfil
-    @border_high = d - @filter.upfil
+    @border_low = -@filter.iterator_lowfil
+    @border_high = d - @filter.iterator_upfil
   end
 
 end
@@ -1228,18 +1410,10 @@ class ConvolutionOperator1d
       s_n = nd[@shape.processed_dim.name]
       if @bc.grow? then
         varsi.push(s_n)
-        if @wavelet then
-          varso.push(s_n + @filter.length - 2)
-        else
-          varso.push(s_n + @filter.length - 1)
-        end
+        varso.push(s_n + @filter.buffer_increment)
       elsif @bc.shrink?
         varsi.push(s_n)
-        if @wavelet then
-          varso.push(s_n - @filter.length + 2)
-        else
-          varso.push(s_n - @filter.length + 1)
-        end
+        varso.push(s_n - @filter.buffer_increment)
       else
         varsi.push(s_n)
         varso.push(s_n)
@@ -1314,6 +1488,7 @@ class ConvolutionOperator1d
       stats_a = []
       par = self.params(dimensions.dup)
       #puts par.inspect
+      print "#{optim} - [#{par[0...@shape.length].join(", ")}] - " if get_verbose
       opt_space.repeat.times {
         stats_a.push kernel.run(*par)
       }
@@ -1321,7 +1496,7 @@ class ConvolutionOperator1d
       stats = stats_a.first
       #puts *par[0...@dims.length]
       if get_verbose then
-        puts "#{optim} - [#{par[0...@shape.length].join(", ")}] - #{kernel.procedure.name}: #{stats[:duration]*1.0e3} ms #{self.cost(*par[0...@shape.length]) / (stats[:duration]*1.0e9)} GFlops"
+        puts "#{kernel.procedure.name}: #{stats[:duration]*1.0e3} ms #{self.cost(*par[0...@shape.length]) / (stats[:duration]*1.0e9)} GFlops"
         puts optim
       end
       t_min = stats[:duration]
@@ -1395,11 +1570,7 @@ class ConvolutionOperator1d
       if @filter.get_mods then
         decl @filter.get_mods
         pr For(@l, @filter.get_mods_lower, @filter.get_mods_upper) {
-          if @filter.kind_of?(WaveletFilter) then
-            pr @filter.get_mods[@l] === modulo(@l, @shape.dim_n/2)
-          else
-            pr @filter.get_mods[@l] === modulo(@l, @shape.dim_n)
-          end
+          pr @filter.compute_mod(@l, @shape.dim_n)
         }
       end
       if @options[:dot_in] && @shape.vector_length > 1 then
@@ -1437,9 +1608,16 @@ class ConvolutionOperator1d
     # the shrink operation contains the central part only
     iter = @shape.iterators[@shape.processed_dim_index]
     if @bc.shrink? then
-      pr For(iter, @shape.line_start, @shape.line_end) {
-        for_conv(:center, tlen)
-      }
+      if @filter.kind_of?(WaveletFilterRecompose) && @filter.odd_gs_s0_size?
+        pr For(iter, @shape.line_start, @shape.line_end-1) {
+          for_conv(:center, tlen)
+        }
+        for_conv(:center_last, tlen)
+      else
+        pr For(iter, @shape.line_start, @shape.line_end) {
+          for_conv(:center, tlen)
+        }
+      end
     else
       pr For(iter, @shape.line_start, @shape.border_low - 1) {
         for_conv(:begin, tlen)
@@ -1447,9 +1625,16 @@ class ConvolutionOperator1d
       pr For(iter, @shape.border_low, @shape.border_high - 1) {
         for_conv(:center, tlen)
       }
-      pr For(iter, @shape.border_high, @shape.line_end) {
-        for_conv(:end, tlen)
-      }
+      if @filter.kind_of?(WaveletFilterRecompose) && @filter.odd_gs_s0_size?
+        pr For(iter, @shape.border_high, @shape.line_end-1) {
+          for_conv(:end, tlen)
+        }
+        for_conv(:last, tlen)
+      else
+        pr For(iter, @shape.border_high, @shape.line_end) {
+          for_conv(:end, tlen)
+        }
+      end
     end
   end
 
@@ -1465,7 +1650,7 @@ class ConvolutionOperator1d
 
       i_in = @shape.input_filter_indexes( ind, @l, side )
 
-      @filter.compute_values(tt_ind, i_in, @x)
+      @filter.compute_values(tt_ind, i_in, @x, side)
     }
   end
 
@@ -1675,18 +1860,10 @@ class GenericConvolutionOperator1d
       elsif @narr then
         pr If(@bc[i] == BC::SHRINK => lambda {
           pr nti === @dims[@idim]
-          if @wavelet then
-            pr nto === @dims[@idim] - @filter.length + 2
-          else
-            pr nto === @dims[@idim] - @filter.length + 1
-          end
+          pr nto === @dims[@idim] - @filter.buffer_increment
         }, @bc[i] == BC::GROW => lambda {
           pr nti === @dims[@idim]
-          if @wavelet then
-            pr nto === @dims[@idim] + @filter.length - 2
-          else
-            pr nto === @dims[@idim] + @filter.length - 1
-          end
+          pr nto === @dims[@idim] + @filter.buffer_increment
         }, :else => lambda {
           pr nti === @dims[@idim]
           pt nto === @dims[@idim]
@@ -1963,17 +2140,9 @@ class GenericConvolutionOperator
     }
     change_dims = lambda { |indx|
       if bc[indx] == BC::SHRINK then
-        if @wavelet then
-          dims_actual[indx] = n[indx] - @filter.length + 2
-        else
-          dims_actual[indx] = n[indx] - @filter.length + 1
-        end
+        dims_actual[indx] = n[indx] - @filter.buffer_increment
       elsif bc[indx] == BC::GROW then
-        if @wavelet then
-          dims_actual[indx] = n[indx] + @filter.length - 2
-        else
-          dims_actual[indx] = n[indx] + @filter.length - 1
-        end
+        dims_actual[indx] = n[indx] + @filter.buffer_increment
       else
         dims_actual[indx] = n[indx]
       end
@@ -2135,11 +2304,7 @@ class GenericConvolutionOperator
 
             if multi_conv then
               if not @ld then
-                if @wavelet then
-                  pr ndat_tot_out === ndat_tot_out * ( dims_actual[indx] + @filter.length - 2 )
-                else
-                  pr ndat_tot_out === ndat_tot_out * ( dims_actual[indx] + @filter.length - 1 )
-                end
+                pr ndat_tot_out === ndat_tot_out * ( dims_actual[indx] + @filter.buffer_increment )
               end
               dats[0] = (datas[0][ndat_tot_in*j+1]).address
               dats[1] = (datas[1][ndat_tot_out*j+1]).address
@@ -2152,11 +2317,7 @@ class GenericConvolutionOperator
             if @ld then
               pr dims_actual[indx] === @ny[indx]  if @ld
             else
-              if @wavelet then
-                pr dims_actual[indx] === dims_actual[indx] + @filter.length - 2
-              else
-                pr dims_actual[indx] === dims_actual[indx] + @filter.length - 1
-              end
+              pr dims_actual[indx] === dims_actual[indx] + @filter.buffer_increment
             end
           },
           BC::SHRINK => lambda {
@@ -2164,11 +2325,7 @@ class GenericConvolutionOperator
 
             if multi_conv then
               if not @ld then
-                if @wavelet then
-                  pr ndat_tot_out === ndat_tot_out * ( dims_actual[indx] - @filter.length + 2 )
-                else
-                  pr ndat_tot_out === ndat_tot_out * ( dims_actual[indx] - @filter.length + 1 )
-                end
+                pr ndat_tot_out === ndat_tot_out * ( dims_actual[indx] - @filter.buffer_increment )
               end
               dats[0] = (datas[0][ndat_tot_in*j+1]).address
               dats[1] = (datas[1][ndat_tot_out*j+1]).address
@@ -2181,11 +2338,7 @@ class GenericConvolutionOperator
             if @ld then
               pr dims_actual[indx] === @ny[indx]  if @ld
             else
-              if @wavelet then
-                pr dims_actual[indx] === dims_actual[indx] - @filter.length + 2
-              else
-                pr dims_actual[indx] === dims_actual[indx] - @filter.length + 1
-              end
+              pr dims_actual[indx] === dims_actual[indx] - @filter.buffer_increment
             end
           }
         }

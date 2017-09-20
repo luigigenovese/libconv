@@ -100,23 +100,22 @@ class TestWaveFunction < Minitest::Test
     w2 = w.to([:r, :s1, :s1])
     refute_equal( w.data_space.data, w2.data_space.data )
     assert_equal( w2.shape.to_a, w2.data_space.data.shape )
-    assert_equal( 0.0, w2.restricted_data[-1, 0..-1, 0..-1, 0..-1, 0..-1].abs.max)
 
     wp = WaveFunction::new(@s0, spaces: [:s1, :s1, :s1])
     wp.data_space.data[] = w.data_space.data[]
     w3 = wp.to([:s0, :s1, :s1]).to([:r, :s1, :s1])
-    assert( (w3.restricted_data - w2.restricted_data[0..-2, 0..-1, 0..-1, 0..-1, 0..-1] ).abs.max < 10e-15 )
+    assert( (w3.restricted_data - w2.restricted_data ).abs.max < 10e-15 )
 
     w = WaveFunction::new(@d1, random: true)
     w2 = w.to([:r, :s1, :s1])
     refute_equal( w.data_space.data, w2.data_space.data )
     assert_equal( w2.shape.to_a, w2.data_space.data.shape )
-    puts w2.restricted_data[0..-1, 0, 0, 0, 0].each.collect.to_a.join(", ")
 
     wp = WaveFunction::new(@d0, spaces: [:s1, :s1, :s1])
     wp.data_space.data[] = w.data_space.data[]
     w3 = wp.to([:s0, :s1, :s1]).to([:r, :s1, :s1])
-    puts w3.restricted_data[0..-1, 0, 0, 0, 0].each.collect.to_a.join(", ")
+    assert_equal( w3.shape.to_a, w3.data_space.data.shape )
+    assert( (w3.restricted_data - w2.restricted_data ).abs.max < 10e-15 )
     
   end
 
