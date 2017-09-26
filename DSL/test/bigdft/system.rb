@@ -80,4 +80,24 @@ class TestSystem < Minitest::Test
     assert_equal([100, 28, 54 - 29 + 3], @s4.leading_dimensions([:s1, :s0, :r]))
   end
 
+  def test_1d
+    s1 = System::new([42], [BC::Free], :s1)
+    assert_equal([42], s1.reference_dimensions)
+    assert_equal([BC::Free], s1.boundary_conditions)
+    assert_equal(1, s1.dimension)
+
+    assert_equal([42], s1.dimensions(:s1))
+    assert_equal([42 + 14], s1.dimensions(:s0))
+    assert_equal([42 + 29], s1.dimensions(:r))
+
+    assert_equal([21 + 1, 2], s1.shapes(:s1))
+    assert_equal([2, 21 + 7], s1.shapes(:s0))
+    assert_equal([42 + 29 + 1], s1.shapes(:r))
+
+    assert_equal([42 + 2], s1.leading_dimensions(:s1))
+    assert_equal([42 + 14], s1.leading_dimensions(:s0))
+    assert_equal([42 + 29 + 1], s1.leading_dimensions(:r))
+
+  end
+
 end

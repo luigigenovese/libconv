@@ -100,6 +100,8 @@ class TestWaveFunction < Minitest::Test
     w2 = w.to([:r, :s1, :s1])
     refute_equal( w.data_space.data, w2.data_space.data )
     assert_equal( w2.shape.to_a, w2.data_space.data.shape )
+    w4 = w.to([:s0, :s1, :s1]).to([:r, :s1, :s1])
+    assert( (w4.restricted_data - w2.restricted_data ).abs.max < 10e-15 )
 
     wp = WaveFunction::new(@s0, spaces: [:s1, :s1, :s1])
     wp.data_space.data[] = w.data_space.data[]
@@ -117,6 +119,19 @@ class TestWaveFunction < Minitest::Test
     assert_equal( w3.shape.to_a, w3.data_space.data.shape )
     assert( (w3.restricted_data - w2.restricted_data ).abs.max < 10e-15 )
     
+  end
+
+  def test_wrong_dimensions
+    w = WaveFunction::new(@s1, random: true)
+    assert_raises(RuntimeError, "Invalid space dimension 2!") { w2 = w.to([:s0, :s0]) }
+  end
+
+  def test_1d
+    s1 = System::new([42], [BC::Free], :s1)
+    w = WaveFunction::new(s1, random: true)
+    w2 = w.to([:s0])
+    w3 = w2.to([:s1])
+    assert( (w.restricted_data - w3.restricted_data).abs.max < 10e-16 )
   end
 
 end
