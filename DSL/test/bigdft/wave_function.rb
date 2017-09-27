@@ -95,6 +95,34 @@ class TestWaveFunction < Minitest::Test
     end
   end
 
+  def test_to_s1r_per
+    w = WaveFunction::new(@s1, random: true)
+    w2 = w.to([:s1, :r, :s1])
+    w3 = w.to([:s1, :s0, :s1]).to([:s1, :r, :s1])
+    assert( (w2.restricted_data - w3.restricted_data).abs.max < 10e-15 )
+  end
+
+  def test_to_rs1_per
+    w = WaveFunction::new(@s1, spaces: [:s1, :r, :s1], random: true)
+    w2 = w.to([:s1, :s1, :s1])
+    w3 = w.to([:s1, :s0, :s1]).to([:s1, :s1, :s1])
+    assert( (w2.restricted_data - w3.restricted_data).abs.max < 10e-15 )
+  end
+
+  def test_to_s1r_shrink
+    w = WaveFunction::new(@s1, random: true)
+    w2 = w.to([:r, :s1, :s1])
+    w3 = w.to([:s0, :s1, :s1]).to([:r, :s1, :s1])
+    assert( (w2.restricted_data - w3.restricted_data).abs.max < 10e-15 )
+  end
+
+  def test_to_rs1_grow
+    w = WaveFunction::new(@s1, spaces: [:r, :s1, :s1], random: true)
+    w2 = w.to([:s1, :s1, :s1])
+    w3 = w.to([:s0, :s1, :s1]).to([:s1, :s1, :s1])
+    assert( (w2.restricted_data - w3.restricted_data).abs.max < 10e-15 )
+  end
+
   def test_to_s1r
     w = WaveFunction::new(@s1, random: true)
     w2 = w.to([:r, :s1, :s1])
@@ -102,6 +130,14 @@ class TestWaveFunction < Minitest::Test
     assert_equal( w2.shape.to_a, w2.data_space.data.shape )
     w4 = w.to([:s0, :s1, :s1]).to([:r, :s1, :s1])
     assert( (w4.restricted_data - w2.restricted_data ).abs.max < 10e-15 )
+
+    w4 = w.to(:r)
+    w3 = w.to(:s0).to(:r)
+    assert( (w4.restricted_data - w3.restricted_data ).abs.max < 10e-15 )
+
+    w4 = w4.to(:s1)
+    w3 = w3.to(:s0).to(:s1)
+    assert( (w4.restricted_data - w3.restricted_data ).abs.max < 10e-15 )
 
     wp = WaveFunction::new(@s0, spaces: [:s1, :s1, :s1])
     wp.data_space.data[] = w.data_space.data[]
