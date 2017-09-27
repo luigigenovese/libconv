@@ -187,6 +187,19 @@ module BigDFT
 
     def run(idim, bc, source, target, **options)
       opts = @default_options.merge(options)
+#      puts @kernel.procedure.name
+#      puts([source.system.dimension,
+#                  idim,
+#                  source.dimensions,
+#                  bc,
+#                  source.leading_dimensions,
+#                  target.leading_dimensions,
+#                  opts[:narr],
+#                  source.data_space.data,
+#                  target.data_space.data,
+#                  opts[:a],
+#                  opts[:a_x],
+#                  opts[:a_y]].collect(&:inspect))
       @kernel.run(source.system.dimension,
                   idim,
                   source.dimensions,
@@ -264,6 +277,10 @@ module BigDFT
   wf = GenericConvolution::WaveletFilterRecompose.new("symicomb#{SYM8_LP.length / 2}", SYM8_LP,
                                   convolution_filter: cf)
   S1TOR = WaveletKernel1d.new( wf, :recompose, :s1tor )
+
+  cf = GenericConvolution::ConvolutionFilter.new('sym8_md', SYM8_MF.reverse, 8)
+  wf = GenericConvolution::WaveletFilterDecompose.new("symicomb#{SYM8_LP.length / 2}", SYM8_LP,
+                                  convolution_filter: cf)
   RTOS1 = WaveletKernel1d.new( wf, :decompose, :rtos1 )
 
 end
