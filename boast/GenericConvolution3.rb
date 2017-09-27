@@ -108,9 +108,8 @@ class Filter
     loop_start = lowfil
     loop_end   = upfil
     if @bc.free? then
-      if side == :begin then
+      if side == :begin || side == :end then
         loop_start = max(-iterator, lowfil)
-      elsif side == :end then
         loop_end   = min(upfil, dim - iterator)
       end
     end
@@ -757,9 +756,8 @@ class WaveletFilterDecompose < WaveletFilter
     loop_start = lowfil
     loop_end   = upfil
     if @bc.free? then
-      if side == :begin then
+      if side == :begin || side == :end
         loop_start = max(-(iterator*2), lowfil)
-      elsif side == :end then
         loop_end   = min(upfil, dim - iterator*2)
       end
     end

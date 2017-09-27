@@ -109,17 +109,31 @@ class TestWaveFunction < Minitest::Test
     assert( (w2.restricted_data - w3.restricted_data).abs.max < 10e-15 )
   end
 
-  def test_to_s1r_shrink
+  def test_to_s1r_grow
     w = WaveFunction::new(@s1, random: true)
     w2 = w.to([:r, :s1, :s1])
     w3 = w.to([:s0, :s1, :s1]).to([:r, :s1, :s1])
     assert( (w2.restricted_data - w3.restricted_data).abs.max < 10e-15 )
   end
 
-  def test_to_rs1_grow
+  def test_to_rs1_shrink
     w = WaveFunction::new(@s1, spaces: [:r, :s1, :s1], random: true)
     w2 = w.to([:s1, :s1, :s1])
     w3 = w.to([:s0, :s1, :s1]).to([:s1, :s1, :s1])
+    assert( (w2.restricted_data - w3.restricted_data).abs.max < 10e-15 )
+  end
+
+  def test_to_s1r_shrink
+    w = WaveFunction::new(@d1, random: true)
+    w2 = w.to([:r, :s1, :s1])
+    w3 = w.to([:s0, :s1, :s1]).to([:r, :s1, :s1])
+    assert( (w2.restricted_data - w3.restricted_data).abs.max < 10e-15 )
+  end
+
+  def test_to_rs1_grow
+    w = WaveFunction::new(@d1, spaces: [:r, :s1, :s1], random: true)
+    w3 = w.to([:s0, :s1, :s1]).to([:s1, :s1, :s1])
+    w2 = w.to([:s1, :s1, :s1])
     assert( (w2.restricted_data - w3.restricted_data).abs.max < 10e-15 )
   end
 
