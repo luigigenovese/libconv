@@ -918,9 +918,8 @@ class WaveletFilterRecompose < WaveletFilter
     loop_start = lowfil
     loop_end   = upfil
     if @bc.free? then
-      if side == :begin then
+      if side == :begin || side == :end || side == :last
         loop_start = max(-iterator, lowfil)
-      elsif side == :end || side == :last then
         loop_end   = min(upfil, dim - iterator)
       end
     end
@@ -1607,6 +1606,8 @@ class ConvolutionOperator1d
   def conv_lines( tlen )
     # the shrink operation contains the central part only
     iter = @shape.iterators[@shape.processed_dim_index]
+    register_funccall("min")
+    register_funccall("max")
     if @bc.shrink? then
       if @filter.kind_of?(WaveletFilterRecompose) && @filter.odd_gs_s0_size?
         pr For(iter, @shape.line_start, @shape.line_end-1) {
@@ -1619,19 +1620,25 @@ class ConvolutionOperator1d
         }
       end
     else
-      pr For(iter, @shape.line_start, @shape.border_low - 1) {
-        for_conv(:begin, tlen)
-      }
-      pr For(iter, @shape.border_low, @shape.border_high - 1) {
-        for_conv(:center, tlen)
-      }
       if @filter.kind_of?(WaveletFilterRecompose) && @filter.odd_gs_s0_size?
-        pr For(iter, @shape.border_high, @shape.line_end-1) {
+        pr For(iter, @shape.line_start, min(@shape.border_low - 1, @shape.line_end-1) ) {
+          for_conv(:begin, tlen)
+        }
+        pr For(iter, @shape.border_low, @shape.border_high - 1) {
+          for_conv(:center, tlen)
+        }
+        pr For(iter, max(@shape.border_low, @shape.border_high), @shape.line_end-1) {
           for_conv(:end, tlen)
         }
         for_conv(:last, tlen)
       else
-        pr For(iter, @shape.border_high, @shape.line_end) {
+        pr For(iter, @shape.line_start, min(@shape.border_low - 1, @shape.line_end)) {
+          for_conv(:begin, tlen)
+        }
+        pr For(iter, @shape.border_low, @shape.border_high - 1) {
+          for_conv(:center, tlen)
+        }
+        pr For(iter, max(@shape.border_low, @shape.border_high), @shape.line_end) {
           for_conv(:end, tlen)
         }
       end

@@ -155,4 +155,21 @@ class TestWaveFunction < Minitest::Test
     w3 = w.to(:r).to(:s1)
     assert( (ws3.restricted_data - w3[1].restricted_data).abs.max < 10e-15 )
   end
+
+  def test_small
+    s1 = System::new([4,6,2], [BC::Free, BC::Per, BC::Free], :s1)
+    w = WaveFunction::new(s1, random: true)
+    w2 = w.to(:s0)
+    w3 = w2.to(:s1)
+    assert( (w.restricted_data - w3.restricted_data).abs.max < 10e-16 )
+
+    w2 = w.to(:r)
+    w3 = w.to(:s0).to(:r)
+    assert( (w2.restricted_data - w3.restricted_data).abs.max < 10e-15 )
+
+    w2 = w2.to(:s1)
+    w3 = w3.to(:s0).to(:s1)
+    assert( (w2.restricted_data - w3.restricted_data).abs.max < 10e-15 )
+  end
+
 end
