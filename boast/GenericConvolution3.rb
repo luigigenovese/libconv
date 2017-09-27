@@ -1337,7 +1337,7 @@ class ConvolutionOperator1d
     @dim_indexes = dim_indexes
     @ld = options[:ld]
     @kinetic = options[:kinetic]
-    @wavelet = options[:wavelet]
+    @wavelet = @filter.kind_of?(WaveletFilter)
     @poisson = options[:poisson]
 
     @shape = Convolution1dShape::new(dim_indexes, bc, @transpose, @filter, @ld)
@@ -1711,7 +1711,7 @@ class GenericConvolutionOperator1d
     @filter = filter
     @ld = options[:ld]
     @narr = options[:narr]
-    @wavelet = options[:wavelet]
+    @wavelet = @filter.kind_of?(WaveletFilter)
     @kinetic = options[:kinetic]
     @poisson = options[:poisson]
 
@@ -2039,7 +2039,7 @@ class GenericConvolutionOperator
     @filter = filter
     @ld = options[:ld]
     @narr = options[:narr]
-    @wavelet = options[:wavelet]
+    @wavelet = @filter.kind_of?(WaveletFilter)
     @kinetic = options[:kinetic]
 
     @vars = []
@@ -2185,7 +2185,7 @@ class GenericConvolutionOperator
     function_name += "d_" if default_real_size == 8
     function_name += "s_" if default_real_size == 4
     if @wavelet then
-      if @wavelet == :decompose then
+      if @wavelet.kind_of?(WaveletFilterDecompose) then
         function_name += "dwt_"
       else
         function_name += "idwt_"

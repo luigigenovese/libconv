@@ -217,9 +217,9 @@ module BigDFT
   end
 
   class WaveletKernel1d < LibConvKernel
-    def initialize(wavelet_filter, direction, op, optims = BigDFT.optims)
+    def initialize(wavelet_filter, op, optims = BigDFT.optims)
       @filter = wavelet_filter
-      conv_operation = GenericConvolution::GenericConvolutionOperator1d.new(wavelet_filter, wavelet: direction, a: true, a_y: true, ld: true, narr: true)
+      conv_operation = GenericConvolution::GenericConvolutionOperator1d.new(wavelet_filter, a: true, a_y: true, ld: true, narr: true)
       @default_options = { narr: 1, a_y: 0.0, a: 1.0 }
       super( conv_operation, op, optims )
     end
@@ -262,10 +262,10 @@ module BigDFT
   end
 
   wf = GenericConvolution::WaveletFilterDecompose.new("sym#{SYM8_LP.length / 2}", SYM8_LP)
-  DWT = WaveletKernel1d.new( wf, :decompose, :dwt)
+  DWT = WaveletKernel1d.new( wf, :dwt)
 
   wf = GenericConvolution::WaveletFilterRecompose.new("sym#{SYM8_LP.length / 2}", SYM8_LP)
-  IDWT = WaveletKernel1d.new( wf, :recompose, :idwt)
+  IDWT = WaveletKernel1d.new( wf, :idwt)
 
   cf = GenericConvolution::ConvolutionFilter.new('sym8_md', SYM8_MF.reverse, 8)                             
   MF = MagicFilterKernel1d.new( cf, :mf)
@@ -276,11 +276,11 @@ module BigDFT
   cf = GenericConvolution::ConvolutionFilter.new('sym8_md', SYM8_MF.reverse, 8)
   wf = GenericConvolution::WaveletFilterRecompose.new("symicomb#{SYM8_LP.length / 2}", SYM8_LP,
                                   convolution_filter: cf)
-  S1TOR = WaveletKernel1d.new( wf, :recompose, :s1tor )
+  S1TOR = WaveletKernel1d.new( wf, :s1tor )
 
   cf = GenericConvolution::ConvolutionFilter.new('sym8_md', SYM8_MF.reverse, 8)
   wf = GenericConvolution::WaveletFilterDecompose.new("symicomb#{SYM8_LP.length / 2}", SYM8_LP,
                                   convolution_filter: cf)
-  RTOS1 = WaveletKernel1d.new( wf, :decompose, :rtos1 )
+  RTOS1 = WaveletKernel1d.new( wf, :rtos1 )
 
 end
