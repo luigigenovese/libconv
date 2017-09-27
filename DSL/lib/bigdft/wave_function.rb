@@ -4,12 +4,23 @@ module BOAST
     attr_accessor :data_space
     attr_reader   :system
     attr_reader   :spaces
+    attr_reader   :m
 
     def initialize(system, **options)
       @system = system
       @spaces = options.fetch(:spaces, [@system.reference_space]*@system.dimension)
+      @m      = options.fetch(:m, 1)
       raise "Invalid space dimension #{@spaces.length}!" if @spaces.length != @system.dimension
-      @data_space = DataSpace::new(*@system.shapes(@spaces), random: options[:random] )
+      @data_space = DataSpace::new(*@system.shapes(@spaces), random: options[:random], m: @m )
+    end
+
+    def [](number)
+      raise "Invalid wave function number #{number}!" if number < 0 || number >= @m
+      nw = self.class::new(@system, spaces: @spaces)
+      mask = [true]*@data_space.data.dimension
+      mask[-1] = number if @m > 1
+      nw.data_space.data[] = @data_space.data[*mask]
+      return nw
     end
 
     def to(target_spaces)
@@ -22,10 +33,10 @@ module BOAST
         next if s == source_spaces[i]
         target_spaces = source_spaces.dup
         target_spaces[i] = s
-        target = WaveFunction::new(@system, spaces: target_spaces)
+        target = self.class::new(@system, spaces: target_spaces, m: @m)
         operator = @system.spaces[source_spaces[i]].transition_operator(s)
         bc = @system.bc_from_transition(i, source_spaces[i], s)
-        operator.run( i, bc, source, target )
+        operator.run( i, bc, source, target, narr: @m )
         source_spaces = target_spaces
         source = target
       }
@@ -45,7 +56,12 @@ module BOAST
       ranges = data_shapes.collect { |s|
         0...s
       }
+      ranges.push(true) if @m > 1
       return data_space.data[*ranges]
+    end
+
+    def restricted_shape
+      return @system.data_shapes(@spaces)
     end
 
     def dimensions

@@ -6,10 +6,12 @@ module BigDFT
     attr_reader :dimension
     attr_reader :precision
     attr_reader :alignment
+    attr_reader :m
 
     def initialize(*shape, **options)
       @precision = options.fetch(:precision, 8)
       @alignment = options.fetch(:alignment, 32)
+      @m         = options.fetch(:m, 1)
       @dimensions = shape.dup
       @dimension = shape.length
       case @precision
@@ -20,7 +22,9 @@ module BigDFT
       else
         raise "Unsupported precision (#{@precision})!"
       end
-      @data = ANArray.new(type, @alignment, *@dimensions)
+      dims = @dimensions
+      dims += [@m] if @m > 1
+      @data = ANArray.new(type, @alignment, *dims)
       @data.random! if options[:random]
     end
 
