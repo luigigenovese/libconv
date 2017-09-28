@@ -47,7 +47,7 @@ module BigDFT
     def initialize(reference_dimensions, boundary_conditions, reference_space, options = {})
       @reference_dimensions = reference_dimensions
       @dimension            = reference_dimensions.length
-      @spaces               = options.fetch(:spaces, { s1: D_S1, s0: D_S0, r: D_R })
+      @spaces               = options.fetch(:spaces, { s1: S1, s0: S0, r: R })
       @reference_space      = reference_space
       raise "Invalid reference dimensions #{reference_dimensions} in #{reference_space}!" if [:s1, :s0].include?( reference_space ) && !@reference_dimensions.all?(&:even?)
       @boundary_conditions  = boundary_conditions
@@ -80,7 +80,7 @@ module BigDFT
         if space[i] == @reference_space
           d
         else
-          op = @spaces[@reference_space].transition_operator(space[i])
+          op = @spaces[@reference_space].transition_operator(space[i])[nil]
           op.dims_from_in(d, bc_from_transition(i, @reference_space, space[i])).last
         end
       end

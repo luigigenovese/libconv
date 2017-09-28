@@ -103,6 +103,22 @@ class TestWaveFunction < Minitest::Test
     end
   end
 
+  def test_precision
+    wd = WaveFunction::new(@s1, random: true)
+    ws = WaveFunction::new(@s1, precision: 4)
+
+    ws.restricted_data = wd.restricted_data
+
+    assert_equal( wd.restricted_data.to_ptr.size, ws.restricted_data.to_ptr.size * 2)
+
+    wd2 = wd.to(:r)
+    ws2 = ws.to(:r)
+
+    assert_equal( wd2.restricted_data.to_ptr.size, ws2.restricted_data.to_ptr.size * 2)
+
+    assert_wfn_equal( wd2, ws2, 10e-7 )
+  end
+
   def test_to_s1r_per
     w = WaveFunction::new(@s1, random: true)
     w2 = w.to([:s1, :r, :s1])

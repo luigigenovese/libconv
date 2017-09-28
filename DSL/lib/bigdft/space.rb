@@ -41,13 +41,10 @@ module BigDFT
       other.extend( S1Methods )
     end
 
-  end
-
-  module D_S1
-    include S1
-
-    @s1s0 = D_IDWT
-    @s1r = D_S1TOR
+    @s1s0 = { 4 => S_IDWT, 8 => D_IDWT }
+    @s1s0.default = D_IDWT
+    @s1r = { 4 => S_S1TOR, 8 => D_S1TOR }
+    @s1r.default = D_S1TOR
 
   end
 
@@ -78,13 +75,10 @@ module BigDFT
       other.extend( S0Methods )
     end
 
-  end
-
-  module D_S0
-    include S0
-
-    @s0r = D_MF
-    @s0s1 = D_DWT
+    @s0r = { 4 => S_MF, 8 => D_MF }
+    @s0r.default = D_MF
+    @s0s1 = { 4 => S_DWT, 8 => D_DWT }
+    @s0s1.default = D_DWT
 
   end
 
@@ -115,13 +109,10 @@ module BigDFT
       other.extend( RMethods )
     end
 
-  end
-
-  module D_R
-    include R
-
-    @rs0 = D_IMF
-    @rs1 = D_RTOS1
+    @rs0 = { 4 => S_IMF, 8 => D_IMF }
+    @rs0.default = D_IMF
+    @rs1 = { 4 => S_RTOS1, 8 => D_RTOS1 }
+    @rs1.default = D_RTOS1
 
   end
 

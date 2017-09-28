@@ -10,8 +10,9 @@ module BOAST
       @system = system
       @spaces = options.fetch(:spaces, [@system.reference_space]*@system.dimension)
       @m      = options.fetch(:m, 1)
+      @precision = options.fetch(:precision, 8)
       raise "Invalid space dimension #{@spaces.length}!" if @spaces.length != @system.dimension
-      @data_space = DataSpace::new(*@system.shapes(@spaces), random: options[:random], m: @m )
+      @data_space = DataSpace::new(*@system.shapes(@spaces), random: options[:random], m: @m, precision: @precision )
     end
 
     def [](number)
@@ -33,8 +34,8 @@ module BOAST
         next if s == source_spaces[i]
         target_spaces = source_spaces.dup
         target_spaces[i] = s
-        target = self.class::new(@system, spaces: target_spaces, m: @m)
-        operator = @system.spaces[source_spaces[i]].transition_operator(s)
+        target = self.class::new(@system, spaces: target_spaces, m: @m, precision: @precision)
+        operator = @system.spaces[source_spaces[i]].transition_operator(s)[data_space.precision]
         bc = @system.bc_from_transition(i, source_spaces[i], s)
         operator.run( i, bc, source, target, narr: @m )
         source_spaces = target_spaces
