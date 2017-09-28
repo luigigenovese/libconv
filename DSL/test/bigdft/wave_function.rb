@@ -145,7 +145,7 @@ class TestWaveFunction < Minitest::Test
     assert_wfn_equal( w2, w3, 10e-15 )
   end
 
-  def test_tos0s1_free
+  def test_to_s0s1_free
     w = WaveFunction::new(@d1, spaces: [:s0, :s1, :s1], random: true)
     d2 = System::new(w.dimensions.to_a, @d1.boundary_conditions, :s1, transitions:  OrderedTransitions::new(:s1, :s0, :r, :discard))
     wd = WaveFunction::new(d2, spaces: [:s0, :s1, :s1])
@@ -157,18 +157,34 @@ class TestWaveFunction < Minitest::Test
     assert( (w2.restricted_data[3..-5, true, true, true, true, true] - wd2.restricted_data).abs.max < 10e-16 )
 
     w2.data_space.data[0..2, true, true, true, true, true] = 0.0
-    w2.data_space.data[w2.restricted_shape[0]-4..-1, true, true, true, true, true] = 0.0
-
-#    p w2.data_space.data[true, true,0,0,0,0].to_a
-#    p wd2.data_space.data[true, true,0,0,0,0].to_a
+    w2.data_space.data[(w2.restricted_shape[0]-4)..-1, true, true, true, true, true] = 0.0
 
     w3  =  w2.to([:s0, :s1, :s1])
     wd3 = wd2.to([:s0, :s1, :s1])
 
-#    p w3.data_space.data[true, true,0,0,0,0].to_a
-#    p wd3.data_space.data[true, true,0,0,0,0].to_a
-
     assert_wfn_equal( w3, wd3, 10e-15 )
+  end
+
+  def test_to_s0r_free
+    w = WaveFunction::new(@d1, spaces: [:r, :s1, :s1])
+    d2 = System::new((w.dimensions + NArray[1,0,0]).to_a, @d1.boundary_conditions, :s1, transitions:  OrderedTransitions::new(:s1, :s0, :r, :discard))
+    wd = WaveFunction::new(d2, spaces: [:r, :s1, :s1])
+    w.restricted_data = NArray::float(*w.restricted_shape).random
+    wd.data_space.data[*w.restricted_slice] = w.restricted_data
+
+    w2 = w.to([:s0, :s1, :s1])
+    wd2 = wd.to([:s0, :s1, :s1])
+
+    assert( (w2.restricted_data[true, 4..-4, true, true, true, true] - wd2.restricted_data[true, true, true, true, true, true]).abs.max < 10e-16 )
+
+    w2.data_space.data[true, 0..3, true, true, true, true] = 0.0
+    w2.data_space.data[true, (w2.restricted_shape[1]-3)..-1, true, true, true, true] = 0.0
+
+    w3 = w2.to([:r, :s1, :s1])
+    wd3 = wd2.to([:r, :s1, :s1])
+
+    assert( (w3.restricted_data - wd3.restricted_data[0..-2, true, true, true, true]).abs.max < 10e-16 )
+
   end
 
   def test_to_s1r

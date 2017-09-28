@@ -52,16 +52,24 @@ module BOAST
     end
 
     def restricted_data
+      return data_space.data[*restricted_slice]
+    end
+
+    def restricted_data=(other)
+      return data_space.data[*restricted_slice] = other
+    end
+
+    def restricted_shape
+      return @system.data_shapes(@spaces)
+    end
+
+    def restricted_slice
       data_shapes = @system.data_shapes(@spaces)
       ranges = data_shapes.collect { |s|
         0...s
       }
       ranges.push(true) if @m > 1
-      return data_space.data[*ranges]
-    end
-
-    def restricted_shape
-      return @system.data_shapes(@spaces)
+      return ranges
     end
 
     def dimensions
