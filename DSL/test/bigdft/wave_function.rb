@@ -5,6 +5,9 @@ class TestWaveFunction < Minitest::Test
   end
 
   def setup
+    seed = srand
+    NArray.srand(seed)
+    srand(seed)
     @s1 = System::new([42, 28, 24], [BC::Free, BC::Per, BC::Free], :s1)
     @s0 = System::new([56, 28, 38], [BC::Free, BC::Per, BC::Free], :s0)
 
