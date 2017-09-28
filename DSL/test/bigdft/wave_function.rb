@@ -220,11 +220,11 @@ class TestWaveFunction < Minitest::Test
 
     w2 = w.to(:r)
     w3 = w.to(:s0).to(:r)
-    assert_wfn_equal( w2, w3, 10e-16 )
+    assert_wfn_equal( w2, w3, 10e-15 )
 
     w2 = w2.to(:s1)
     w3 = w3.to(:s0).to(:s1)
-    assert_wfn_equal( w2, w3, 10e-16 )
+    assert_wfn_equal( w2, w3, 10e-15 )
   end
 
 end
