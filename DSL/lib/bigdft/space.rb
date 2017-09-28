@@ -1,18 +1,24 @@
 module BigDFT
 
   module Space
-    class << self
+    module SpaceMethods
       attr_reader :space
       def transition_operator(space)
         raise "Unknown transition to #{space.inspect} from #{self.space.inspect}!"
       end
     end
+    extend SpaceMethods
+
+    def self.included( other )
+      other.extend( SpaceMethods )
+    end
+
   end
 
   module S1
-    extend Space
+    include Space
 
-    class << self
+    module S1Methods
       attr_reader :s1s0
       attr_reader :s1r
 
@@ -28,16 +34,27 @@ module BigDFT
       end
     end
 
+    extend S1Methods
     @space = :s1
-    @s1s0 = IDWT
-    @s1r = S1TOR
+
+    def self.included( other )
+      other.extend( S1Methods )
+    end
+
+  end
+
+  module D_S1
+    include S1
+
+    @s1s0 = D_IDWT
+    @s1r = D_S1TOR
 
   end
 
   module S0
     extend Space
 
-    class << self
+    module S0Methods
       attr_reader :s0r
       attr_reader :s0s1
 
@@ -54,16 +71,27 @@ module BigDFT
 
     end
 
+    extend S0Methods
     @space = :s0
-    @s0r = MF
-    @s0s1 = DWT
+
+    def self.included( other )
+      other.extend( S0Methods )
+    end
+
+  end
+
+  module D_S0
+    include S0
+
+    @s0r = D_MF
+    @s0s1 = D_DWT
 
   end
 
   module R
     extend Space
 
-    class << self
+    module RMethods
       attr_reader :rs0
       attr_reader :rs1
 
@@ -80,9 +108,20 @@ module BigDFT
 
     end
 
+    extend RMethods
     @space = :r
-    @rs0 = IMF
-    @rs1 = RTOS1
+
+    def self.included( other )
+      other.extend( RMethods )
+    end
+
+  end
+
+  module D_R
+    include R
+
+    @rs0 = D_IMF
+    @rs1 = D_RTOS1
 
   end
 

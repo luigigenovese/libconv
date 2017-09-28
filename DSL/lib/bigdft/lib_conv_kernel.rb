@@ -262,25 +262,25 @@ module BigDFT
   end
 
   wf = GenericConvolution::WaveletFilterDecompose.new("sym#{SYM8_LP.length / 2}", SYM8_LP)
-  DWT = WaveletKernel1d.new( wf, :dwt)
+  D_DWT = WaveletKernel1d.new( wf, :dwt)
 
   wf = GenericConvolution::WaveletFilterRecompose.new("sym#{SYM8_LP.length / 2}", SYM8_LP)
-  IDWT = WaveletKernel1d.new( wf, :idwt)
+  D_IDWT = WaveletKernel1d.new( wf, :idwt)
 
   cf = GenericConvolution::ConvolutionFilter.new('sym8_md', SYM8_MF.reverse, 8)                             
-  MF = MagicFilterKernel1d.new( cf, :mf)
+  D_MF = MagicFilterKernel1d.new( cf, :mf)
 
   icf = GenericConvolution::ConvolutionFilter.new('sym8_imd', SYM8_MF, 7)
-  IMF = MagicFilterKernel1d.new( icf, :imf)
+  D_IMF = MagicFilterKernel1d.new( icf, :imf)
 
   cf = GenericConvolution::ConvolutionFilter.new('sym8_md', SYM8_MF.reverse, 8)
   wf = GenericConvolution::WaveletFilterRecompose.new("symicomb#{SYM8_LP.length / 2}", SYM8_LP,
                                   convolution_filter: cf)
-  S1TOR = WaveletKernel1d.new( wf, :s1tor )
+  D_S1TOR = WaveletKernel1d.new( wf, :s1tor )
 
   cf = GenericConvolution::ConvolutionFilter.new('sym8_md', SYM8_MF.reverse, 8)
   wf = GenericConvolution::WaveletFilterDecompose.new("symicomb#{SYM8_LP.length / 2}", SYM8_LP,
                                   convolution_filter: cf)
-  RTOS1 = WaveletKernel1d.new( wf, :rtos1 )
+  D_RTOS1 = WaveletKernel1d.new( wf, :rtos1 )
 
 end
