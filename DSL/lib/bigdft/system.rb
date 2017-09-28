@@ -65,6 +65,8 @@ module BigDFT
           GenericConvolution::BC::GROW
         elsif tr == :shrink
           GenericConvolution::BC::SHRINK
+        elsif tr == :discard
+          GenericConvolution::BC::FREE
         else
           raise "Unknown transition: #{tr.inspect}!"
         end

@@ -950,7 +950,7 @@ class BoundaryConditions
   NPERIODIC = -2
   FREE = 2
 
-  CONDITIONS = [PERIODIC, GROW, SHRINK]
+  CONDITIONS = [PERIODIC, GROW, SHRINK, FREE]
 
   # original id of the boundary conditions
   attr_reader :id
@@ -1964,6 +1964,9 @@ class GenericConvolutionOperator1d
           },
           BC::SHRINK => lambda {
             print_call_param_a.call( BC::SHRINK )
+          },
+          BC::FREE => lambda {
+            print_call_param_a.call( BC::FREE )
           }
         }
         case_args[BC::NPERIODIC] = lambda { print_call_param_a.call( BC::NPERIODIC ) } if @poisson
@@ -2304,6 +2307,20 @@ class GenericConvolutionOperator
             close f if multi_conv
             pr dims_actual[indx] === @ny[indx]  if @ld
           },
+          BC::FREE => lambda {
+            procname = ConvolutionOperator1d::new(@filter, BC::new(BC::FREE), dim_indexes, opt).base_name
+            if multi_conv then
+              pr ndat_tot_out === ndat_tot_out * dims_actual[indx] if not @ld
+              dats[0] = (datas[0][ndat_tot_in*j+1]).address
+              dats[1] = (datas[1][ndat_tot_out*j+1]).address
+              pr f
+            else
+              dats = datas.dup
+            end
+            pr @procs[procname].call( *vars, *dats, *vars2 )
+            close f if multi_conv
+            pr dims_actual[indx] === @ny[indx]  if @ld
+          },
           BC::GROW => lambda {
             procname = ConvolutionOperator1d::new(@filter, BC::new(BC::GROW), dim_indexes, opt).base_name
 
@@ -2489,7 +2506,7 @@ class ConvolutionOptimization
       end
     end
 
-    convolution.bc.each_with_index { |bc,ind| @use_mod[ind] = (not bc.free?) }
+    convolution.bc.each_with_index { |bc,ind| @use_mod[ind] = !bc.free? }
 
     @dim_order=(0...ndim).collect{|i| i}
     @dim_order.reverse!  if @transpose == -1

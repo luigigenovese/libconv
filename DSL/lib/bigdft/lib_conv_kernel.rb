@@ -70,7 +70,7 @@ module BigDFT
 
     def dims_from_in(in_dim, bc)
       case bc
-      when GenericConvolution::BC::PERIODIC
+      when GenericConvolution::BC::PERIODIC, GenericConvolution::BC::FREE
         [ in_dim, in_dim, in_dim ]
       when GenericConvolution::BC::GROW
         [ in_dim, in_dim, in_dim + buffer_increment ]
@@ -83,7 +83,7 @@ module BigDFT
 
     def dims_from_out(out_dim, bc)
       case bc
-      when GenericConvolution::BC::PERIODIC
+      when GenericConvolution::BC::PERIODIC, GenericConvolution::BC::FREE
         [ out_dim, out_dim, out_dim ]
       when GenericConvolution::BC::GROW
         [ out_dim - buffer_increment, out_dim - buffer_increment, out_dim ]
