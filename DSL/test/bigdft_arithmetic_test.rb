@@ -10,10 +10,22 @@ class TestArithmetic < Minitest::Test
     b = Variable::new(:b)
     c = Variable::new(:c)
 
-    exp = a*b*c + c
+    exp = a*MF()**W()**c + b
 
-    g = BigDFT::expression_graph(exp)
-    g.write_to_graphic_file('svg')
+    g = BigDFT.expression_graph(exp)
+    g.write_to_graphic_file('svg', 'toto')
+
+    vertexes = g.each.select { |v|
+      v.kind_of?(MagicFilter) && !(g.each_adjacent(v).select { |c|
+        c.kind_of?(WaveletTransform)
+      }.empty?)
+    }
+
+    p vertexes
+
+    vertexes = g.each.select { |v|
+      v.kind_of?(Exp) && v.left.kind_of?(MagicFilter) && v.right
+    }
 
   end
 end
