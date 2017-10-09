@@ -6,6 +6,14 @@ module BigDFT
       def transition_operator(space)
         raise "Unknown transition to #{space.inspect} from #{self.space.inspect}!"
       end
+
+      def bind_ops(op)
+        table = {}
+        CONFIGURATION.each { |config|
+          table[config] = BigDFT::const_get(BigDFT::const_name(op, config))
+        }
+        return table
+      end
     end
     extend SpaceMethods
 
@@ -41,15 +49,15 @@ module BigDFT
       other.extend( S1Methods )
     end
 
-    @s1s0 = { 4 => S_IDWT, 8 => D_IDWT }
-    @s1s0.default = D_IDWT
-    @s1r = { 4 => S_S1TOR, 8 => D_S1TOR }
-    @s1r.default = D_S1TOR
+    @s1s0 = bind_ops("IDWT")
+    @s1s0.default = D_SYM8_IDWT
+    @s1r = bind_ops("S1TOR")
+    @s1r.default = D_SYM8_S1TOR
 
   end
 
   module S0
-    extend Space
+    include Space
 
     module S0Methods
       attr_reader :s0r
@@ -75,15 +83,15 @@ module BigDFT
       other.extend( S0Methods )
     end
 
-    @s0r = { 4 => S_MF, 8 => D_MF }
-    @s0r.default = D_MF
-    @s0s1 = { 4 => S_DWT, 8 => D_DWT }
-    @s0s1.default = D_DWT
+    @s0r = bind_ops("MF")
+    @s0r.default = D_SYM8_MF
+    @s0s1 = bind_ops("DWT")
+    @s0s1.default = D_SYM8_DWT
 
   end
 
   module R
-    extend Space
+    include Space
 
     module RMethods
       attr_reader :rs0
@@ -109,10 +117,10 @@ module BigDFT
       other.extend( RMethods )
     end
 
-    @rs0 = { 4 => S_IMF, 8 => D_IMF }
-    @rs0.default = D_IMF
-    @rs1 = { 4 => S_RTOS1, 8 => D_RTOS1 }
-    @rs1.default = D_RTOS1
+    @rs0 = bind_ops("IMF")
+    @rs0.default = D_SYM8_IMF
+    @rs1 = bind_ops("RTOS1")
+    @rs1.default = D_SYM8_RTOS1
 
   end
 

@@ -35,7 +35,8 @@ module BOAST
         target_spaces = source_spaces.dup
         target_spaces[i] = s
         target = self.class::new(@system, spaces: target_spaces, m: @m, precision: @precision)
-        operator = @system.spaces[source_spaces[i]].transition_operator(s)[data_space.precision]
+        op_opt = { wavelet_family: @system.wavelet_family, precision: @precision }
+        operator = @system.spaces[source_spaces[i]].transition_operator(s)[op_opt]
         bc = @system.bc_from_transition(i, source_spaces[i], s)
         operator.run( i, bc, source, target, narr: @m )
         source_spaces = target_spaces

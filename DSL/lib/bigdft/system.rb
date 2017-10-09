@@ -43,11 +43,13 @@ module BigDFT
     attr_reader :grow_direction
     attr_reader :dimension
     attr_reader :spaces
+    attr_reader :wavelet_family
 
     def initialize(reference_dimensions, boundary_conditions, reference_space, options = {})
       @reference_dimensions = reference_dimensions
       @dimension            = reference_dimensions.length
       @spaces               = options.fetch(:spaces, { s1: S1, s0: S0, r: R })
+      @wavelet_family       = options.fetch(:wavelet_family, "SYM8")
       @reference_space      = reference_space
       raise "Invalid reference dimensions #{reference_dimensions} in #{reference_space}!" if [:s1, :s0].include?( reference_space ) && !@reference_dimensions.all?(&:even?)
       @boundary_conditions  = boundary_conditions
