@@ -2546,11 +2546,11 @@ def self.print_header(macro = false)
     get_output.puts "#include <immintrin.h>" if get_architecture == X86
     get_output.puts "#include <arm_neon.h>" if get_architecture == ARM
     if macro then
-      get_output.print "#define modulo(a, b) ((a+b)%(b))\n"
+      get_output.print "#define modulo(a, b) ( ((a) % (b)) + (((a) % (b))>>(8*#{get_default_int_size} - 1) & b))\n"
       get_output.print "#define min( a, b) ((a) < (b) ? a : b)\n"
       get_output.print "#define max( a, b) ((a) > (b) ? a : b)\n"
     else
-      get_output.print "static inline #{Int::new.decl} modulo( #{Int::new.decl} a, #{Int::new.decl} b) { return (a+b)%b;}\n"
+      get_output.print "static inline #{Int::new.decl} modulo( #{Int::new.decl} a, #{Int::new.decl} b) { #{Int::new.decl} m; m = a % b; return m + (m>>( 8*#{get_default_int_size} - 1 ) & b) ;}\n"
       get_output.print "static inline #{Int::new.decl} min( #{Int::new.decl} a, #{Int::new.decl} b) { return a < b ? a : b;}\n"
       get_output.print "static inline #{Int::new.decl} max( #{Int::new.decl} a, #{Int::new.decl} b) { return a > b ? a : b;}\n"
     end
