@@ -33,6 +33,7 @@ module BigDFT
   class LibConvKernel
 
     attr_reader :kernel
+    attr_reader :cost_procedure
     attr_reader :op
     attr_reader :filter
     attr_reader :default_options
@@ -65,7 +66,9 @@ module BigDFT
         @kernel.cost_function = ->(*args) { conv_operation.cost(*args) }
         @kernel.build
         @kernel.dump_module( ".cache/#{p.name}.#{RbConfig::CONFIG['DLEXT']}" )
+        @kernel.dump_source( ".cache/#{p.name}.f90" )
       end
+      @cost_procedure = conv_operation.empty_procedure(:cost)
     end
 
     def dims_from_in(in_dim, bc)
