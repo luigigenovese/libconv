@@ -209,12 +209,6 @@ module BigDFT
     wavelet_family = config[:wavelet_family]
     wavelet_name = wavelet_family.downcase
     precision = config[:precision]
-    case precision
-    when 4
-      precision_name = "S"
-    when 8
-      precision_name = "D"
-    end
 
     BOAST.push_env( default_real_size: precision ) {
       wvals = const_get(wavelet_family+"_LP")
@@ -223,8 +217,8 @@ module BigDFT
       wf = GenericConvolution::WaveletFilterDecompose.new(wavelet_name, wvals)
       const_set(const_name("DWT", config), WaveletKernel1d.new( wf, :dwt))
 
-      wf = GenericConvolution::WaveletFilterRecompose.new(wavelet_name, wvals)
-      const_set(const_name("IDWT", config), WaveletKernel1d.new( wf, :idwt))
+      iwf = GenericConvolution::WaveletFilterRecompose.new(wavelet_name, wvals)
+      const_set(const_name("IDWT", config), WaveletKernel1d.new( iwf, :idwt))
 
       cf = GenericConvolution::ConvolutionFilter.new(wavelet_name+'_md', mfvals.reverse, mfvals.length/2)
       const_set(const_name("MF", config), MagicFilterKernel1d.new( cf, :mf))
@@ -232,13 +226,11 @@ module BigDFT
       icf = GenericConvolution::ConvolutionFilter.new(wavelet_name+'_imd', mfvals, mfvals.length/2 - 1)
       const_set(const_name("IMF", config), MagicFilterKernel1d.new( icf, :imf))
 
-      cf = GenericConvolution::ConvolutionFilter.new(wavelet_name+'_md', mfvals.reverse, mfvals.length/2)
-      wf = GenericConvolution::WaveletFilterRecompose.new(wavelet_name+"icomb", wvals, convolution_filter: cf)
-      const_set(const_name("S1TOR", config), WaveletKernel1d.new( wf, :s1tor ))
+      s1s0wf = GenericConvolution::WaveletFilterRecompose.new(wavelet_name+"icomb", wvals, convolution_filter: cf)
+      const_set(const_name("S1TOR", config), WaveletKernel1d.new( s1s0wf, :s1tor ))
 
-      cf = GenericConvolution::ConvolutionFilter.new(wavelet_name+'_md', mfvals.reverse, mfvals.length/2)
-      wf = GenericConvolution::WaveletFilterDecompose.new(wavelet_name+"icomb", wvals, convolution_filter: cf)
-      const_set(const_name("RTOS1", config), WaveletKernel1d.new( wf, :rtos1 ))
+      s0s1wf = GenericConvolution::WaveletFilterDecompose.new(wavelet_name+"icomb", wvals, convolution_filter: cf)
+      const_set(const_name("RTOS1", config), WaveletKernel1d.new( s0s1wf, :rtos1 ))
     }
   }
 
