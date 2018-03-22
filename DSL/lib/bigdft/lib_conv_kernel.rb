@@ -34,6 +34,7 @@ module BigDFT
 
     attr_reader :kernel
     attr_reader :cost_procedure
+    attr_reader :dims_procedure
     attr_reader :op
     attr_reader :filter
     attr_reader :default_options
@@ -69,6 +70,7 @@ module BigDFT
         @kernel.dump_source( ".cache/#{p.name}.f90" )
       end
       @cost_procedure = conv_operation.empty_procedure(:cost)
+      @dims_procedure = conv_operation.empty_procedure(:dims)
     end
 
     def dims_from_in(in_dim, bc)

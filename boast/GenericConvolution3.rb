@@ -135,7 +135,7 @@ class Filter
   def cost
     return @length * 2
   end
-
+  
   def buffer_increment
     return @length - 1
   end
@@ -1369,6 +1369,9 @@ class ConvolutionOperator1d
     @vars.push @dot_in = Real("dot_in",:dir => :out) if options[:dot_in]
     @dot_in_tmp = nil
     @cost = Int("cost", :dir => :out)
+    @dim = Int("dim", :dir => :out)
+    @idim = Int("idim", :dir => :out)
+    @dimensions = Int("dims", :dim => [ Dim() ], :dir => :out)
     @l = Int :l
     @options = options
     @base_name = ""
@@ -1515,6 +1518,10 @@ class ConvolutionOperator1d
     }
     return n * @filter.cost * ndat
   end
+  
+#  def dims(*dimens)
+#    return @filter.dims
+#  end
 
   def get_constants
     return [@filter.lowfil, @filter.upfil]
@@ -1555,7 +1562,25 @@ class ConvolutionOperator1d
         pr @cost === @shape.processed_dim * @filter.cost * @shape.non_processed_dims.inject(&:*)
       }
     end
-
+    if util == :dims then
+      args = []
+#      args.push(@idim)
+      args.push(@shape.processed_dim)
+      args.push(@dim)
+      return Procedure(function_name, args){
+        if @shape.processed_dim_index == @idim then
+          if @bc.grow? then
+            pr @dim === @shape.processed_dim + @filter.buffer_increment
+          elsif @bc.shrink? then
+            pr @dim === @shape.processed_dim - @filter.buffer_increment
+          else
+            pr @dim === @shape.processed_dim
+          end
+        else
+          pr @dim === @shape.non_processed_dims.first
+        end
+      }
+    end
     @filter.init_optims(tt_arr, mod_arr, unroll_inner, @shape.unroll_length, @shape.vector_length)
 
     return Procedure(function_name, vars, :constants => get_constants ){
@@ -1732,6 +1757,7 @@ class GenericConvolutionOperator1d
     @vars.push @a_y = Real("a_y",:dir => :in) if options[:a_y] && options[:a_y] != 1.0
     @vars.push @dot_in = Real("dot_in",:dir => :out) if options[:dot_in]
     @cost = Int( "cost", :dir => :out )
+    @dimensions = Int( "dims", :dim => [Dim()], :dir => :out )
 
     @transpose = 0
     @options=options.dup
@@ -1772,10 +1798,13 @@ class GenericConvolutionOperator1d
           @needed_subops[p.base_name] = p
           @procs[p.base_name] = p.procedure
           @procs[p.base_name+"_cost"] = p.procedure( :util => :cost )
+          @procs[p.base_name+"_dims"] = p.procedure( :util => :dims )
         }
       }
     }
     p = self.procedure(:cost).first
+    @procs[p.name] = p
+    p = self.procedure(:dims).first
     @procs[p.name] = p
   end
 
@@ -1820,6 +1849,10 @@ class GenericConvolutionOperator1d
     return cost * m
   end
 
+#  def dims( idim, n, bc, m = 1 )
+#    return 4
+#  end
+
   def procedure_name(util = nil)
     function_name = ""
     function_name += "d_" if default_real_size == 8
@@ -1834,10 +1867,13 @@ class GenericConvolutionOperator1d
 
   def empty_procedure(util = nil)
     function_name = procedure_name(util)
-
-    vv = @vars
+    if util then
+      vv = @vars[0..6]+@vars[9..-1] 
+    else
+      vv = @vars
+    end
     vv += [ @cost ] if util == :cost
-
+    vv += [ @dimensions ] if util == :dims
     p = Procedure( function_name, vv )
   end
 
@@ -1845,9 +1881,13 @@ class GenericConvolutionOperator1d
 
     function_name = procedure_name(util)
 
-    vv = @vars
+    if util then
+      vv = @vars[0..6]+@vars[9..-1] 
+    else
+      vv = @vars
+    end
     vv += [ @cost ] if util == :cost
-
+    vv += [ @dimensions ] if util == :dims
     p = Procedure( function_name, vv ) {
       ndat_left = Int "ndat_left"
       ndat_right = Int "ndat_right"
@@ -1911,11 +1951,16 @@ class GenericConvolutionOperator1d
         if util == :cost then
           pr @cost === 0
           args = dims + [tmp_cost.address]
+        elsif util == :dims then
+          args = []
+#          args.push (@idim)
+          args.push (@dims[@idim])
+          args.push (@dimensions[@idim].address)
         end
-        opn f if @narr
+        opn f if @narr && util != :dims
           pr @procs[procname].call( *args )
           pr @cost === @cost + tmp_cost if util == :cost
-        close f if @narr
+        close f if @narr && util != :dims
       }
 
       print_call_param_a_y = lambda { |bc, a, a_x|
@@ -2183,6 +2228,10 @@ class GenericConvolutionOperator
     return cost * m
   end
 
+#  def dims(n, bc, m = 1)
+#    return 6
+#  end
+  
   def procedure
     function_name = ""
     function_name += "d_" if default_real_size == 8
