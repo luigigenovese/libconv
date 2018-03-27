@@ -123,7 +123,7 @@
                       x = BOAST::Real("x", :dir => :in, :dim => [ BOAST::Dim()] )
                       y=BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()] )
                       cost = BOAST::Int("cost", :dir => :out)
-                      dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim()])
+                      dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
                       
                       operations.each{ |operation|
                           if util then 
