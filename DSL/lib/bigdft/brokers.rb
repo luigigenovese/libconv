@@ -23,30 +23,32 @@
   families=["s0s0", "s0s1", "s1s0"]
   dimensions=["1d"]
   
-  filename = "broker.f90"
+  header = "libconvf.h"
   if BOAST::get_lang == BOAST::C then
-    filename = "broker.c"
+    header = "libconv.h"
   end
-  
-  
-  File::open(filename,"w") { |f|
+  foldername=""
+  if not BigDFT.from_cache then
+    foldername = BigDFT::foldername
+  end
+  File::open(foldername+header,"w") { |f|
   set_output(f)
 
 
 #TODO : hashmap
-  SYM8_MF2 = BOAST::Int("SYM8_MF")
-  SYM8_IMF = BOAST::Int("SYM8_IMF")
-  SYM8_DWT = BOAST::Int("SYM8_DWT")
-  SYM8_RTOS1 = BOAST::Int("SYM8_RTOS1")
-  SYM8_IDWT = BOAST::Int("SYM8_IDWT")
-  SYM8_S1TOR = BOAST::Int("SYM8_S1TOR")
-  SYM8_D12 = BOAST::Int("SYM8_D1")
-  SYM8_D22 = BOAST::Int("SYM8_D2")
+  SYM8_MF2 = BOAST::Int("SYM8_MF", :constant => 0)
+  SYM8_IMF = BOAST::Int("SYM8_IMF", :constant => 1)
+  SYM8_DWT = BOAST::Int("SYM8_DWT", :constant => 2)
+  SYM8_RTOS1 = BOAST::Int("SYM8_RTOS1", :constant => 3)
+  SYM8_IDWT = BOAST::Int("SYM8_IDWT", :constant => 4)
+  SYM8_S1TOR = BOAST::Int("SYM8_S1TOR", :constant => 5)
+  SYM8_D12 = BOAST::Int("SYM8_D1", :constant => 6)
+  SYM8_D22 = BOAST::Int("SYM8_D2", :constant => 7)
   
   if BOAST::get_lang == BOAST::C then 
       f.puts "enum ops {SYM8_MF, SYM8_IMF, SYM8_DWT,SYM8_RTOS1,SYM8_IDWT,SYM8_S1TOR,SYM8_D1,SYM8_D2};"
   else 
-      f.puts "module brokers"
+#      f.puts "module brokers"
       f.puts "integer :: SYM8_MF, SYM8_IMF, SYM8_DWT"
       f.puts "integer :: SYM8_RTOS1, SYM8_IDWT, SYM8_S1TOR"
       f.puts "integer :: SYM8_D1, SYM8_D2"
@@ -58,9 +60,16 @@
       f.puts "parameter(SYM8_S1TOR=5)"
       f.puts "parameter(SYM8_D1=6)"
       f.puts "parameter(SYM8_D2=7)"
-      f.puts "end module brokers"
+#      f.puts "end module brokers"
   end
+  }
   
+  filename = "brokers.f90"
+  if BOAST::get_lang == BOAST::C then
+    filename = "brokers.c"
+  end
+  File::open(foldername+filename,"w") { |f|
+  set_output(f)
   #interfaces, commented for now
   
 
@@ -173,6 +182,34 @@
       }
 #  }
   }#file
+
+# write Makefile.am to foldername
+
+if not BigDFT.from_cache then
+    compiler_options = BOAST::get_compiler_options
+
+    makelines="""
+    lib_LIBRARIES = libconv.a
+
+    #temporary compiling line for gfortran
+    AM_FCFLAGS = -I. #{compiler_options[:FCFLAGS]}
+
+    libconv_a_SOURCES = """
+
+    BigDFT::kernels.each{|f| makelines+=f.to_str+"\\\n"}
+
+    makelines+=" #{filename}\n"
+
+#    makelines+="libconv_a_OBJECTS = $(libconv_a_SOURCES:.f90=.o)\n"
+
+#    makelines+="%.o: %.f90
+#	    gfortran $(AM_FCFLAGS) -c $< \n
+#    libconv.a: $(libconv_a_OBJECTS)
+#	    gfortran $(AM_FCFLAGS) -c -o $@ $^"
+    File::open("#{BigDFT::foldername}Makefile.am","w") {|f|
+      f.puts makelines
+    }
+end
 
 #    return kernel
 

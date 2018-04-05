@@ -6,9 +6,12 @@ module BigDFT
   class << self
     attr_accessor :optims
     attr_reader   :from_cache
+    attr_reader   :kernels
+    attr_reader   :foldername
   end
-  @optims = { unroll_range: [1, 1], mod_arr_test: false, tt_arr_test: false }
-
+  @optims = { unroll_range: [1, 1], mod_arr_test: false, tt_arr_test: false, openmp: true }
+  @foldername=Time.now().strftime("%Y-%m-%d_%H-%M-%S/")
+  @kernels=[]
   unless File.directory?('.cache')
     FileUtils.mkdir_p('.cache')
   end
@@ -30,6 +33,21 @@ module BigDFT
     }
   end
 
+  def self.dump_to_file(kernel)
+    filename=kernel.procedure.name
+    case get_lang
+    when C
+      suffix = ".c"
+    when FORTRAN
+      suffix = ".f90"
+    end
+    filedump="#{filename}#{suffix}"
+    Dir.mkdir("#{@foldername}") if not Dir.exist?(@foldername)
+    File::open(@foldername+filedump,"w") {|f|
+      f.puts kernel
+    }
+    @kernels.push(filedump)
+  end
   class LibConvKernel
 
     attr_reader :kernel
@@ -67,7 +85,8 @@ module BigDFT
         @kernel.cost_function = ->(*args) { conv_operation.cost(*args) }
         @kernel.build
         @kernel.dump_module( ".cache/#{p.name}.#{RbConfig::CONFIG['DLEXT']}" )
-        @kernel.dump_source( ".cache/#{p.name}.f90" )
+
+        BigDFT.dump_to_file(@kernel)
       end
       @cost_procedure = conv_operation.empty_procedure(:cost)
       @dims_procedure = conv_operation.empty_procedure(:dims)
