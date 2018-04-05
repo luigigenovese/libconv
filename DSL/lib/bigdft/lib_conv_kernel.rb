@@ -211,6 +211,38 @@ module BigDFT
     end
 
   end
+  
+  
+class PoissonKernel1d < LibConvKernel
+def initialize(conv_filter, optims = BigDFT.optims)
+    @filter = conv_filter
+    conv_operation = GenericConvolutionOperator1d::new(conv_filter, :transpose => 0, :work => false, :ld => false, :narr => false, :a => true, :poisson => true)
+    @default_options = { narr: 0, a_y: 0.0, a: 1.0 }
+    super( conv_operation, op, optims )
+    end
+
+
+    def buffer_increment
+      @filter.buffer_increment
+    end
+
+    def dimension_space
+      :s0
+    end
+
+    def run(idim, bc, source, target, **options)
+      opts = @default_options.merge(options)
+      @kernel.run(source.system.dimension,
+                  idim,
+                  source.dimensions,
+                  bc,
+                  source.leading_dimensions,
+                  target.leading_dimensions,
+                  source.data_space.data,
+                  target.data_space.data,
+                  opts[:a])
+    end
+end
 
   def self.const_name(operation, config)
 
@@ -255,6 +287,8 @@ module BigDFT
 
       s0s1wf = GenericConvolution::WaveletFilterDecompose.new(wavelet_name+"icomb", wvals, convolution_filter: cf)
       const_set(const_name("RTOS1", config), WaveletKernel1d.new( s0s1wf, :rtos1 ))
+      
+#      pf = PoissonFilter::new('poisson',filter.to_a,nord)
     }
   }
 
