@@ -144,7 +144,10 @@
                       
                       kernel = BOAST::CKernel::new(:kernels => kernels)
                       
-                      vars = [op, d, idim, n, bc, nx, ny, narr, x, y, a]
+                      vars = [op, d, idim, n, bc]
+                      vars+=[nx, ny, narr] if util != "dims"
+                      vars+=[x, y] if not util
+                      vars.push a
                       vars.push a_x if family == "s0s0"
                       vars.push a_y
                       vars.push cost if util == "cost"

@@ -1867,8 +1867,12 @@ class GenericConvolutionOperator1d
 
   def empty_procedure(util = nil)
     function_name = procedure_name(util)
-    if util then
-      vv = @vars[0..6]+@vars[9..-1] 
+    if util == :cost then
+    #remove x and y
+      vv = @vars[0..6]+@vars[9..-1]
+    elsif util == :dims then
+    #remove x, y, nx, ny, narr 
+      vv = @vars[0..3]+@vars[9..-1]
     else
       vv = @vars
     end
@@ -1881,8 +1885,12 @@ class GenericConvolutionOperator1d
 
     function_name = procedure_name(util)
 
-    if util then
-      vv = @vars[0..6]+@vars[9..-1] 
+    if util == :cost then
+    #remove x and y
+      vv = @vars[0..6]+@vars[9..-1]
+    elsif util == :dims then
+    #remove x, y, nx, ny, narr 
+      vv = @vars[0..3]+@vars[9..-1]
     else
       vv = @vars
     end
@@ -1898,21 +1906,23 @@ class GenericConvolutionOperator1d
       tmp_cost = Int "c"
       decl i, ndat_left, ndat_right
       decl tmp_cost if util == :cost
-      decl nti, nto, j if @narr
-      if @narr && @ld then
-        pr nti === @nx[@idim]
-        pr nto === @ny[@idim]
-      elsif @narr then
+      if util != :dims then
+        decl nti, nto, j if @narr
+        if @narr && @ld then
+          pr nti === @nx[@idim]
+          pr nto === @ny[@idim]
+        elsif @narr then
         pr If(@bc[i] == BC::SHRINK => lambda {
-          pr nti === @dims[@idim]
-          pr nto === @dims[@idim] - @filter.buffer_increment
-        }, @bc[i] == BC::GROW => lambda {
-          pr nti === @dims[@idim]
-          pr nto === @dims[@idim] + @filter.buffer_increment
-        }, :else => lambda {
-          pr nti === @dims[@idim]
-          pt nto === @dims[@idim]
-        })
+            pr nti === @dims[@idim]
+            pr nto === @dims[@idim] - @filter.buffer_increment
+          }, @bc[i] == BC::GROW => lambda {
+            pr nti === @dims[@idim]
+            pr nto === @dims[@idim] + @filter.buffer_increment
+          }, :else => lambda {
+            pr nti === @dims[@idim]
+            pr nto === @dims[@idim]
+          })
+        end
       end
       dims = []
       dim_indexes = []
@@ -2020,7 +2030,7 @@ class GenericConvolutionOperator1d
       pr If( @idim == 0 => lambda {
         pr ndat_right === 1
         pr For( i, 1, @ndim - 1 ) {
-          if @ld && util != :cost then
+          if @ld && (not util) then
             pr ndat_right === ndat_right * @nx[i]
           else
             pr ndat_right === ndat_right * @dims[i]
@@ -2036,7 +2046,7 @@ class GenericConvolutionOperator1d
       }, @idim == @ndim - 1 => lambda {
         pr ndat_left === 1
         pr For( i, 0, @ndim - 2 ) {
-          if @ld && util != :cost then
+          if @ld && (not util) then
             pr ndat_left === ndat_left * @nx[i]
           else
             pr ndat_left === ndat_left * @dims[i]
@@ -2053,14 +2063,14 @@ class GenericConvolutionOperator1d
         pr ndat_left === 1
         pr ndat_right === 1
         pr For( i, 0, @idim - 1 ) {
-          if @ld && util != :cost then
+          if @ld &&  (not util) then
             pr ndat_left === ndat_left * @nx[i]
           else
             pr ndat_left === ndat_left * @dims[i]
           end
         }
         pr For( i, @idim + 1, @ndim - 1 ) {
-          if @ld && util != :cost then
+          if @ld &&  (not util) then
             pr ndat_right === ndat_right * @nx[i]
           else
             pr ndat_right === ndat_right * @dims[i]
