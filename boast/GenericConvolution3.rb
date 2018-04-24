@@ -1474,8 +1474,13 @@ class ConvolutionOperator1d
       #puts optim
       kernel = CKernel::new
       GenericConvolution.print_header
-      p = self.procedure(optim)
-      pr p
+      begin
+        p = self.procedure(optim)
+        pr p
+      rescue Exception => e
+        puts "#{e.message} - Skipping #{p.name}"
+        next
+      end
       kernel.procedure = p
       next if already_tested[p.name]
       #kernel.print #if @bc.free?
