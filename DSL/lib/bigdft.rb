@@ -1,5 +1,6 @@
 require_relative '../../boast/GenericConvolution3'
 require_relative '../../boast/WaveletFilters'
+require_relative '../../boast/PoissonFilters'
 require_relative 'bigdft/dimension'
 require_relative 'bigdft/data_space'
 require_relative 'bigdft/boundary_condition'

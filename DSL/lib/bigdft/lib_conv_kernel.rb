@@ -211,12 +211,11 @@ module BigDFT
     end
 
   end
-  
-  
+
 class PoissonKernel1d < LibConvKernel
-def initialize(conv_filter, optims = BigDFT.optims)
+def initialize(conv_filter, op, optims = BigDFT.optims)
     @filter = conv_filter
-    conv_operation = GenericConvolutionOperator1d::new(conv_filter, :transpose => 0, :work => false, :ld => false, :narr => false, :a => true, :poisson => true)
+    conv_operation = GenericConvolution::GenericConvolutionOperator1d.new(conv_filter, ld: false, narr: false, a: true, poisson: true)
     @default_options = { narr: 0, a_y: 0.0, a: 1.0 }
     super( conv_operation, op, optims )
     end
@@ -288,7 +287,13 @@ end
       s0s1wf = GenericConvolution::WaveletFilterDecompose.new(wavelet_name+"icomb", wvals, convolution_filter: cf)
       const_set(const_name("RTOS1", config), WaveletKernel1d.new( s0s1wf, :rtos1 ))
       
-#      pf = PoissonFilter::new('poisson',filter.to_a,nord)
+    nords=[2,4,6,8,16]
+    nords.each{ |nord_n|
+        filter=const_get("NABLA_"+nord_n.to_s)
+        conv_filter = GenericConvolution::PoissonFilter::new('poisson'+nord_n.to_s,filter.each_slice(nord_n+1).to_a,nord_n)
+        const_set(const_name("PS"+nord_n.to_s, config), PoissonKernel1d.new( conv_filter, :ps))
+    }
+    
     }
   }
 
