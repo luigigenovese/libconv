@@ -4,16 +4,16 @@
 #def brokers
 
   prec = BOAST::Int("prec", :dir => :in)
-  op = BOAST::Int("op", :dir => :in)
+  op = BOAST::Int("op", :dir => :in, :reference => 1)
 #  wavelet_fam = BOAST::Int("wavelet_fam", :dir => :in)
     
-  d = BOAST::Int("d", :dir => :in)
-  idim = BOAST::Int("idim", :dir => :in)
+  d = BOAST::Int("d", :dir => :in, :reference => 1)
+  idim = BOAST::Int("idim", :dir => :in, :reference => 1)
   n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
-  bc = BOAST::Int("bc", :dir => :in)
+  bc = BOAST::Int("bc", :dir => :in, :reference => 1)
   nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
   ny = BOAST::Int("ny", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
-  narr = BOAST::Int("narr", :dir => :in)
+  narr = BOAST::Int("narr", :dir => :in, :reference => 1)
   kernels=[]
   #TODO : hashtable to get kernels
 #  operations=["DWT", "IDWT", "MF", "IMF", "S1TOR", "RTOS1"]
@@ -71,7 +71,9 @@
   File::open(foldername+filename,"w") { |f|
   set_output(f)
   #interfaces, commented for now
-  
+  if BOAST::get_lang == BOAST::C then
+    f.puts  "#include <stdint.h>"
+  end
 
 #  families.each{ |family|
 #      dimensions.each{ |dimension|
@@ -125,13 +127,13 @@
                       kernels=[]
                       function_name = "#{precision_name}_#{family}_#{dimension}"
                       function_name += "_#{util}" if util
-
-                      a = BOAST::Real("a", :dir => :in )
-                      a_x = BOAST::Real("a_x", :dir => :in )
-                      a_y = BOAST::Real("a_y", :dir => :in )
+                      function_name += "_" if BOAST::get_lang == BOAST::C
+                      a = BOAST::Real("a", :dir => :in, :reference => 1 )
+                      a_x = BOAST::Real("a_x", :dir => :in, :reference => 1 )
+                      a_y = BOAST::Real("a_y", :dir => :in, :reference => 1 )
                       x = BOAST::Real("x", :dir => :in, :dim => [ BOAST::Dim()] )
                       y=BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()] )
-                      cost = BOAST::Int("cost", :dir => :out)
+                      cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
                       dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
                       
                       operations.each{ |operation|
@@ -166,7 +168,7 @@
                                   proc = kernels[i].procedure
                               end
                               case_args[op] = lambda {
-                                  BOAST::pr proc.call(vars.join(","))
+                                  BOAST::pr proc.call(*vars)
                               }
                           }
                           BOAST::pr BOAST::Case( op, case_args)
@@ -195,8 +197,11 @@ if not BigDFT.from_cache then
     lib_LIBRARIES = libconv.a
 
     #temporary compiling line for gfortran
-    AM_FCFLAGS = -I. #{compiler_options[:FCFLAGS]}
+    AM_FCFLAGS = -I. #{compiler_options[:FCFLAGS]} -march=#{BOAST::get_model} #{BOAST::get_openmp_flags[compiler_options[:FC]]}
 
+    #temporary compiling line for gcc
+    AM_CFLAGS = -I. #{compiler_options[:CFLAGS]} -march=#{BOAST::get_model} #{BOAST::get_openmp_flags[compiler_options[:CC]]}
+    
     libconv_a_SOURCES = """
 
     BigDFT::kernels.each{|f| makelines+=f.to_str+"\\\n"}
