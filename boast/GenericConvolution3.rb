@@ -1757,7 +1757,7 @@ class GenericConvolutionOperator1d
     @vars.push @a_y = Real("a_y",:dir => :in) if options[:a_y] && options[:a_y] != 1.0
     @vars.push @dot_in = Real("dot_in",:dir => :out) if options[:dot_in]
     @cost = Int( "cost", :dir => :out )
-    @dimensions = Int( "dims", :dim => [Dim()], :dir => :out )
+    @dimensions = Int( "dims", :dim => [Dim(0, @ndim - 1)], :dir => :out )
 
     @transpose = 0
     @options=options.dup
@@ -1867,14 +1867,21 @@ class GenericConvolutionOperator1d
 
   def empty_procedure(util = nil)
     function_name = procedure_name(util)
+    vv = []
+    vv = @vars.dup
     if util == :cost then
+      xindex = 4
+      xindex += 2 if @ld
+      xindex += 1 if @narr
     #remove x and y
-      vv = @vars[0..6]+@vars[9..-1]
+      vv.slice!(xindex, 2)
     elsif util == :dims then
-    #remove x, y, nx, ny, narr 
-      vv = @vars[0..3]+@vars[9..-1]
-    else
-      vv = @vars
+      xindex = 4
+      n = 0
+      n += 2 if @ld
+      n += 1 if @narr
+      #remove x, y, nx, ny, narr 
+      vv.slice!(xindex, n+2)
     end
     vv += [ @cost ] if util == :cost
     vv += [ @dimensions ] if util == :dims
@@ -1884,15 +1891,21 @@ class GenericConvolutionOperator1d
   def procedure(util = nil)
 
     function_name = procedure_name(util)
-
+    vv = []
+    vv = @vars.dup
     if util == :cost then
+      xindex = 4
+      xindex += 2 if @ld
+      xindex += 1 if @narr
     #remove x and y
-      vv = @vars[0..6]+@vars[9..-1]
+      vv.slice!(xindex, 2)
     elsif util == :dims then
-    #remove x, y, nx, ny, narr 
-      vv = @vars[0..3]+@vars[9..-1]
-    else
-      vv = @vars
+      xindex = 4
+      n = 0
+      n += 2 if @ld
+      n += 1 if @narr
+      #remove x, y, nx, ny, narr 
+      vv.slice!(xindex, n+2)
     end
     vv += [ @cost ] if util == :cost
     vv += [ @dimensions ] if util == :dims
@@ -1906,23 +1919,21 @@ class GenericConvolutionOperator1d
       tmp_cost = Int "c"
       decl i, ndat_left, ndat_right
       decl tmp_cost if util == :cost
-      if util != :dims then
-        decl nti, nto, j if @narr
-        if @narr && @ld then
-          pr nti === @nx[@idim]
-          pr nto === @ny[@idim]
-        elsif @narr then
-        pr If(@bc[i] == BC::SHRINK => lambda {
-            pr nti === @dims[@idim]
-            pr nto === @dims[@idim] - @filter.buffer_increment
-          }, @bc[i] == BC::GROW => lambda {
-            pr nti === @dims[@idim]
-            pr nto === @dims[@idim] + @filter.buffer_increment
-          }, :else => lambda {
-            pr nti === @dims[@idim]
-            pr nto === @dims[@idim]
-          })
-        end
+      decl nti, nto, j if @narr
+      if @narr && @ld && util != :dims then
+        pr nti === @nx[@idim]
+        pr nto === @ny[@idim]
+      elsif @narr then
+      pr If(@bc[i] == BC::SHRINK => lambda {
+          pr nti === @dims[@idim]
+          pr nto === @dims[@idim] - @filter.buffer_increment
+        }, @bc[i] == BC::GROW => lambda {
+          pr nti === @dims[@idim]
+          pr nto === @dims[@idim] + @filter.buffer_increment
+        }, :else => lambda {
+          pr nti === @dims[@idim]
+          pr nto === @dims[@idim]
+        })
       end
       dims = []
       dim_indexes = []
