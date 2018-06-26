@@ -1929,7 +1929,7 @@ class GenericConvolutionOperator1d
       if @narr && @ld && util != :dims then
         pr nti === @nx[@idim]
         pr nto === @ny[@idim]
-      elsif @narr then
+      elsif @narr && util != :dims then
       pr If(@bc[i] == BC::SHRINK => lambda {
           pr nti === @dims[@idim]
           pr nto === @dims[@idim] - @filter.buffer_increment
@@ -1944,7 +1944,7 @@ class GenericConvolutionOperator1d
       dims = []
       dim_indexes = []
       dats = []
-      if @narr then
+      if @narr && util != :dims then
         f = For(j, 0, @narr-1)
         dats[0] = (@x[nti*j+1]).address
         dats[1] = (@y[nto*j+1]).address
