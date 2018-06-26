@@ -1479,6 +1479,7 @@ class ConvolutionOperator1d
         pr p
       rescue Exception => e
         puts "#{e.message} - Skipping #{p.name}"
+        p.close
         next
       end
       kernel.procedure = p
