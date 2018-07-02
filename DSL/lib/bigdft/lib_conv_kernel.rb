@@ -212,6 +212,42 @@ module BigDFT
 
   end
 
+
+  class KineticKernel1d < LibConvKernel
+    def initialize(filter, op, optims = BigDFT.optims)
+      @filter = filter
+      conv_operation = GenericConvolution::GenericConvolutionOperator1d.new(filter,kinetic: :inplace, ld: true, narr: true, a_x: true, a_y: true, a: true, dot_in: true)
+      @default_options = { narr: 1, a_x: 1.0, a_y: 1.0, a: 1.0 }
+      super( conv_operation, op, optims )
+    end
+
+    def buffer_increment
+      @filter.buffer_increment
+    end
+
+    def dimension_space
+      :r
+    end
+
+    def run(idim, bc, source, target, **options)
+      opts = @default_options.merge(options)
+      @kernel.run(source.system.dimension,
+                  idim,
+                  source.dimensions,
+                  bc,
+                  source.leading_dimensions,
+                  target.leading_dimensions,
+                  opts[:narr],
+                  source.data_space.data,
+                  target.data_space.data,
+                  opts[:a],
+                  opts[:a_x],
+                  opts[:a_y])
+    end
+
+  end
+
+
 class PoissonKernel1d < LibConvKernel
 def initialize(conv_filter, op, optims = BigDFT.optims)
     @filter = conv_filter
@@ -268,6 +304,13 @@ end
     BOAST.push_env( default_real_size: precision ) {
       wvals = const_get(wavelet_family+"_LP")
       mfvals = const_get(wavelet_family+"_MF")
+
+      kf2 = GenericConvolution::ConvolutionFilter.new(wavelet_name+'_d2', const_get(wavelet_family+"_D2"), const_get(wavelet_family+"_D2").length/2)
+      const_set(const_name("D2", config), KineticKernel1d.new( kf2, :kd2))
+
+      kf1 = GenericConvolution::ConvolutionFilter.new(wavelet_name+'_d1', const_get(wavelet_family+"_D1"), const_get(wavelet_family+"_D1").length/2)
+      const_set(const_name("D1", config), KineticKernel1d.new( kf1, :kd1))
+
 
       wf = GenericConvolution::WaveletFilterDecompose.new(wavelet_name, wvals)
       const_set(const_name("DWT", config), WaveletKernel1d.new( wf, :dwt))

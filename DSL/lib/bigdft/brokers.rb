@@ -20,7 +20,7 @@
   precisions=[4,8]
   wavelet_families=["SYM8"]
     
-  families=["s0s0", "s0s1", "s1s0"]
+  families=["s0s0", "s0s0_dot", "s0s1", "s1s0"]
   dimensions=["1d"]
   
   header = "libconvf.h"
@@ -106,6 +106,8 @@
       case family
       when "s0s0"
           operations=[SYM8_MF2, SYM8_IMF]
+      when "s0s0_dot"
+          operations=[SYM8_D12, SYM8_D22]
       when "s0s1"
           operations=[SYM8_DWT, SYM8_RTOS1]
       when "s1s0"
@@ -131,6 +133,7 @@
                       a = BOAST::Real("a", :dir => :in, :reference => 1 )
                       a_x = BOAST::Real("a_x", :dir => :in, :reference => 1 )
                       a_y = BOAST::Real("a_y", :dir => :in, :reference => 1 )
+                      dot_in = Real("dot_in",:dir => :inout, :dim => [ BOAST::Dim(1)])
                       x = BOAST::Real("x", :dir => :in, :dim => [ BOAST::Dim()] )
                       y=BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()] )
                       cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
@@ -150,8 +153,9 @@
                       vars+=[nx, ny, narr] if util != "dims"
                       vars+=[x, y] if not util
                       vars.push a
-                      vars.push a_x if family == "s0s0"
+                      vars.push a_x if family == "s0s0" or family == "s0s0_dot"
                       vars.push a_y
+                      vars.push dot_in if family == "s0s0_dot"
                       vars.push cost if util == "cost"
                       vars.push dims if util == "dims"
                       p = BOAST::Procedure(function_name, vars){
