@@ -22,18 +22,6 @@
     
   families=["s0s0", "s0s0_dot", "s0s1", "s1s0"]
   dimensions=["1d"]
-  
-  header = "libconvf.h"
-  if BOAST::get_lang == BOAST::C then
-    header = "libconv.h"
-  end
-  foldername=""
-  if not BigDFT.from_cache then
-    foldername = BigDFT::foldername
-  end
-  File::open(foldername+header,"w") { |f|
-  set_output(f)
-
 
 #TODO : hashmap
   SYM8_MF2 = BOAST::Int("SYM8_MF", :constant => 0)
@@ -44,10 +32,24 @@
   SYM8_S1TOR = BOAST::Int("SYM8_S1TOR", :constant => 5)
   SYM8_D12 = BOAST::Int("SYM8_D1", :constant => 6)
   SYM8_D22 = BOAST::Int("SYM8_D2", :constant => 7)
-  
-  if BOAST::get_lang == BOAST::C then 
+
+#generate both Fortran and C header files every time
+
+  ["C", "Fortran"].each { |l|
+    if l == "C" then
+      header = "libconv.h"
+    else
+      header = "libconvf.h"
+    end 
+    foldername=""
+    if not BigDFT.from_cache then
+      foldername = BigDFT::foldername
+    end
+    File::open(foldername+header,"w") { |f|
+    set_output(f)
+    if l == "C" then 
       f.puts "enum ops {SYM8_MF, SYM8_IMF, SYM8_DWT,SYM8_RTOS1,SYM8_IDWT,SYM8_S1TOR,SYM8_D1,SYM8_D2};"
-  else 
+    else 
 #      f.puts "module brokers"
       f.puts "integer :: SYM8_MF, SYM8_IMF, SYM8_DWT"
       f.puts "integer :: SYM8_RTOS1, SYM8_IDWT, SYM8_S1TOR"
@@ -61,7 +63,8 @@
       f.puts "parameter(SYM8_D1=6)"
       f.puts "parameter(SYM8_D2=7)"
 #      f.puts "end module brokers"
-  end
+    end
+    }
   }
   
   filename = "brokers.f90"
