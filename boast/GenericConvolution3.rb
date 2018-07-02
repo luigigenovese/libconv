@@ -1595,21 +1595,23 @@ class ConvolutionOperator1d
       decl @l
       decl *([@filter.get_tt].flatten)
       @filter.decl_filter_val
+      if @options[:dot_in] then
+        decl @dot_in_tmp = @dot_in.copy("dot_in_tmp", :vector_length => @shape.vector_length, :dir => nil, :direction => nil)
+      else
+        @dot_in_tmp = @dot_in
+      end
+
       if @filter.get_mods then
         decl @filter.get_mods
         pr For(@l, @filter.get_mods_lower, @filter.get_mods_upper) {
           pr @filter.compute_mod(@l, @shape.dim_n)
         }
       end
-      if @options[:dot_in] && @shape.vector_length > 1 then
-        decl @dot_in_tmp = @dot_in.copy("dot_in_tmp", :vector_length => @shape.vector_length, :dir => nil, :direction => nil)
-      else
-        @dot_in_tmp = @dot_in
-      end
-      pr @dot_in.set(0.0) if @options[:dot_in]
-      pr OpenMP::Parallel(default: :shared, reduction: (@options[:dot_in] ? {"+" => @dot_in} : nil ), private: @shape.iterators + [@l] + [@filter.get_tt] + ( @filter.get_filter_val ? [@filter.get_filter_val].flatten : [] )) {
+      pr @dot_in_tmp.set(0.0) if @options[:dot_in]
+      pr OpenMP::Parallel(default: :shared, reduction: (@options[:dot_in] ? {"+" => @dot_in_tmp} : nil ), private: @shape.iterators + [@l] + [@filter.get_tt] + ( @filter.get_filter_val ? [@filter.get_filter_val].flatten : [] )) {
         convolution1d
       }
+      pr @dot_in === @dot_in_tmp if @options[:dot_in] and get_lang == C
     }
   end
 
@@ -1965,7 +1967,7 @@ class GenericConvolutionOperator1d
         vars.push( @a ) if a
         vars.push( @a_x ) if a_x
         vars.push( @a_y ) if a_y
-        vars.push( @dot_in ) if @dot_in
+        vars.push( @dot_in.address ) if @dot_in
         vars.push( tmp_cost.address ) if util == :cost
         lds = []
         if @ld
