@@ -1,12 +1,7 @@
-#    def run(idim, bc, source, target, **options)
-
-
-#def brokers
-
+#This generates high level brokers for libconv, as well as header files to use for compilation against libconv, and a Makefile.
+module Brokers
   prec = BOAST::Int("prec", :dir => :in)
   op = BOAST::Int("op", :dir => :in, :reference => 1)
-#  wavelet_fam = BOAST::Int("wavelet_fam", :dir => :in)
-    
   d = BOAST::Int("d", :dir => :in, :reference => 1)
   idim = BOAST::Int("idim", :dir => :in, :reference => 1)
   n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
@@ -15,25 +10,29 @@
   ny = BOAST::Int("ny", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
   narr = BOAST::Int("narr", :dir => :in, :reference => 1)
   kernels=[]
-  #TODO : hashtable to get kernels
-#  operations=["DWT", "IDWT", "MF", "IMF", "S1TOR", "RTOS1"]
   precisions=[4,8]
-  wavelet_families=["SYM8"]
-    
+  wavelet_families=["SYM8", "SYM4"]
+  operations=["MF","IMF","DWT","RTOS1","IDWT","S1TOR","D1","D2"]
   families=["s0s0", "s0s0_dot", "s0s1", "s1s0"]
   dimensions=["1d"]
 
-#TODO : hashmap
-  SYM8_MF2 = BOAST::Int("SYM8_MF", :constant => 0)
-  SYM8_IMF = BOAST::Int("SYM8_IMF", :constant => 1)
-  SYM8_DWT = BOAST::Int("SYM8_DWT", :constant => 2)
-  SYM8_RTOS1 = BOAST::Int("SYM8_RTOS1", :constant => 3)
-  SYM8_IDWT = BOAST::Int("SYM8_IDWT", :constant => 4)
-  SYM8_S1TOR = BOAST::Int("SYM8_S1TOR", :constant => 5)
-  SYM8_D12 = BOAST::Int("SYM8_D1", :constant => 6)
-  SYM8_D22 = BOAST::Int("SYM8_D2", :constant => 7)
+  def self.const_name(wavelet_family, operation)
+    return "#{precision_name}_#{wavelet_family}_#{operation}"
 
+  end
+
+  id=0
+  wavelet_families.each{ |wav_fam|
+    operations.each{ |op|
+    const_set("#{wav_fam}_#{op}", BOAST::Int("#{wav_fam}_#{op}", :constant => id) )
+    id +=1
+    }
+  }
 #generate both Fortran and C header files every time
+    foldername=""
+    if not BigDFT.from_cache then
+      foldername = BigDFT::foldername
+    end
 
   ["C", "Fortran"].each { |l|
     if l == "C" then
@@ -41,28 +40,42 @@
     else
       header = "libconvf.h"
     end 
-    foldername=""
-    if not BigDFT.from_cache then
-      foldername = BigDFT::foldername
-    end
     File::open(foldername+header,"w") { |f|
     set_output(f)
-    if l == "C" then 
-      f.puts "enum ops {SYM8_MF, SYM8_IMF, SYM8_DWT,SYM8_RTOS1,SYM8_IDWT,SYM8_S1TOR,SYM8_D1,SYM8_D2};"
+
+    id=0
+
+    if l == "C" then
+      f.puts "enum ops{"
+      wavelet_families.each{ |wav_fam|
+        operations.each{ |op|
+          f.print "#{wav_fam}_#{op}"
+          f.print "," if op != operations.last
+        }
+      }
+      f.puts "};"
     else 
-#      f.puts "module brokers"
-      f.puts "integer :: SYM8_MF, SYM8_IMF, SYM8_DWT"
-      f.puts "integer :: SYM8_RTOS1, SYM8_IDWT, SYM8_S1TOR"
-      f.puts "integer :: SYM8_D1, SYM8_D2"
-      f.puts "parameter(SYM8_MF=0)"
-      f.puts "parameter(SYM8_IMF=1)"
-      f.puts "parameter(SYM8_DWT=2)"
-      f.puts "parameter(SYM8_RTOS1=3)"
-      f.puts "parameter(SYM8_IDWT=4)"
-      f.puts "parameter(SYM8_S1TOR=5)"
-      f.puts "parameter(SYM8_D1=6)"
-      f.puts "parameter(SYM8_D2=7)"
-#      f.puts "end module brokers"
+      wavelet_families.each{ |wav_fam|
+#       f.puts "module brokers"
+        operations.each{ |op|
+        f.print "integer :: " if id%3 == 0
+        f.print "#{wav_fam}_#{op}"
+        if id%3 != 2 and  !(op == operations.last and wav_fam == wavelet_families.last)
+          f.print ", "
+        else
+          f.puts ""
+        end
+        id+=1
+        }
+      }
+      id=0
+      wavelet_families.each{ |wav_fam|
+        operations.each{ |op|
+          f.puts "parameter(#{wav_fam}_#{op}=#{id})"
+          id+=1
+        }
+      }
+#       f.puts "end module brokers"
     end
     }
   }
@@ -103,18 +116,17 @@
       
 #  f.puts "contains" if BOAST::get_lang == BOAST::FORTRAN
   
-
-#s0s0 : MF, IMF, + D1, D2
+wavelet_families.each{ |wav_fam|
   families.each{ |family|
       case family
       when "s0s0"
-          operations=[SYM8_MF2, SYM8_IMF]
+          operations=[const_get("#{wav_fam}_MF"), const_get("#{wav_fam}_IMF")]
       when "s0s0_dot"
-          operations=[SYM8_D12, SYM8_D22]
+          operations=[const_get("#{wav_fam}_D1"), const_get("#{wav_fam}_D2")]
       when "s0s1"
-          operations=[SYM8_DWT, SYM8_RTOS1]
+          operations=[const_get("#{wav_fam}_DWT"), const_get("#{wav_fam}_RTOS1")]
       when "s1s0"
-          operations=[SYM8_IDWT, SYM8_S1TOR]
+          operations=[const_get("#{wav_fam}_IDWT"), const_get("#{wav_fam}_S1TOR")]
       end
 
       precisions.each{ |precision|
@@ -192,8 +204,9 @@
               generate_kernel.call("dims")
           }
       }
-#  }
-  }#file
+  }
+}
+
 
 # write Makefile.am to foldername
 
@@ -228,4 +241,4 @@ end
 
 #    return kernel
 
-#end 
+end 
