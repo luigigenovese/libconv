@@ -294,7 +294,7 @@ end
 
   end
 
-  CONFIGURATION = BOAST::BruteForceOptimizer::new( BOAST::OptimizationSpace::new( {precision: [4, 8], wavelet_family: ["SYM8"] } ) )
+  CONFIGURATION = BOAST::BruteForceOptimizer::new( BOAST::OptimizationSpace::new( {precision: [4, 8], wavelet_family: ["SYM4", "SYM8"] } ) )
 
   CONFIGURATION.each { |config|
     wavelet_family = config[:wavelet_family]
@@ -329,16 +329,19 @@ end
 
       s0s1wf = GenericConvolution::WaveletFilterDecompose.new(wavelet_name+"icomb", wvals, convolution_filter: cf)
       const_set(const_name("RTOS1", config), WaveletKernel1d.new( s0s1wf, :rtos1 ))
-      
-    nords=[2,4,6,8,16]
-    nords.each{ |nord_n|
-        filter=const_get("NABLA_"+nord_n.to_s)
-        conv_filter = GenericConvolution::PoissonFilter::new('poisson'+nord_n.to_s,filter.each_slice(nord_n+1).to_a,nord_n)
-        const_set(const_name("PS"+nord_n.to_s, config), PoissonKernel1d.new( conv_filter, :ps))
-    }
-    
     }
   }
-
-
+ CONFIGURATION_POISSON = BOAST::BruteForceOptimizer::new( BOAST::OptimizationSpace::new( {precision: [4, 8], wavelet_family: ["NABLA"]}))
+ CONFIGURATION_POISSON.each { |config|
+   precision = config[:precision]
+   BOAST.push_env( default_real_size: precision ) {	
+     nords=[2,4,6,8,16]
+     nords.each{ |nord_n|
+       filter=const_get("NABLA_"+nord_n.to_s)
+       conv_filter = GenericConvolution::PoissonFilter::new('poisson'+nord_n.to_s,filter.each_slice(nord_n+1).to_a,nord_n)
+       const_set(const_name("PS"+nord_n.to_s, config), PoissonKernel1d.new( conv_filter, :ps))
+     }
+   }
+ }
+ 
 end

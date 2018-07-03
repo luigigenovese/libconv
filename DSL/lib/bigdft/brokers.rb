@@ -116,96 +116,94 @@ module Brokers
       
 #  f.puts "contains" if BOAST::get_lang == BOAST::FORTRAN
   
-wavelet_families.each{ |wav_fam|
   families.each{ |family|
+      ops=[]
+    wavelet_families.each{ |wav_fam|
       case family
-      when "s0s0"
-          operations=[const_get("#{wav_fam}_MF"), const_get("#{wav_fam}_IMF")]
-      when "s0s0_dot"
-          operations=[const_get("#{wav_fam}_D1"), const_get("#{wav_fam}_D2")]
-      when "s0s1"
-          operations=[const_get("#{wav_fam}_DWT"), const_get("#{wav_fam}_RTOS1")]
-      when "s1s0"
-          operations=[const_get("#{wav_fam}_IDWT"), const_get("#{wav_fam}_S1TOR")]
+        when "s0s0"
+          ops.push(*[const_get("#{wav_fam}_MF"), const_get("#{wav_fam}_IMF")])
+        when "s0s0_dot"
+          ops.push(*[const_get("#{wav_fam}_D1"), const_get("#{wav_fam}_D2")])
+        when "s0s1"
+          ops.push(*[const_get("#{wav_fam}_DWT"), const_get("#{wav_fam}_RTOS1")])
+        when "s1s0"
+          ops.push(*[const_get("#{wav_fam}_IDWT"), const_get("#{wav_fam}_S1TOR")])
       end
+    }
+    precisions.each{ |precision|
+      case precision
+        when 4
+          precision_name = "s"
+        when 8
+          precision_name = "d"
+      end
+      generate_kernel = Proc.new  { |util|
+        BOAST.push_env( default_real_size: precision ){
+          dimensions.each{ |dimension|
+            kernels=[]
+            function_name = "#{precision_name}_#{family}_#{dimension}"
+            function_name += "_#{util}" if util
+            function_name += "_" if BOAST::get_lang == BOAST::C
+            a = BOAST::Real("a", :dir => :in, :reference => 1 )
+            a_x = BOAST::Real("a_x", :dir => :in, :reference => 1 )
+            a_y = BOAST::Real("a_y", :dir => :in, :reference => 1 )
+            dot_in = Real("dot_in",:dir => :inout, :dim => [ BOAST::Dim(1)])
+            x = BOAST::Real("x", :dir => :in, :dim => [ BOAST::Dim()] )
+            y=BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()] )
+            cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
+            dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
 
-      precisions.each{ |precision|
-          case precision
-          when 4
-              precision_name = "s"
-          when 8
-              precision_name = "d"
-          end
-          
-          generate_kernel = Proc.new  { |util|
-          
-              BOAST.push_env( default_real_size: precision ){
-                  dimensions.each{ |dimension|
-                      kernels=[]
-                      function_name = "#{precision_name}_#{family}_#{dimension}"
-                      function_name += "_#{util}" if util
-                      function_name += "_" if BOAST::get_lang == BOAST::C
-                      a = BOAST::Real("a", :dir => :in, :reference => 1 )
-                      a_x = BOAST::Real("a_x", :dir => :in, :reference => 1 )
-                      a_y = BOAST::Real("a_y", :dir => :in, :reference => 1 )
-                      dot_in = Real("dot_in",:dir => :inout, :dim => [ BOAST::Dim(1)])
-                      x = BOAST::Real("x", :dir => :in, :dim => [ BOAST::Dim()] )
-                      y=BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()] )
-                      cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
-                      dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
-                      
-                      operations.each{ |operation|
-                          if util then 
-                              kernels.push BOAST::const_get("#{precision_name}".upcase+"_#{operation.name}")
-                          else 
-                              kernels.push BOAST::const_get("#{precision_name}".upcase+"_#{operation.name}").kernel
-                          end
-                      }
-                      
-                      kernel = BOAST::CKernel::new(:kernels => kernels)
-                      
-                      vars = [op, d, idim, n, bc]
-                      vars+=[nx, ny, narr] if util != "dims"
-                      vars+=[x, y] if not util
-                      vars.push a
-                      vars.push a_x if family == "s0s0" or family == "s0s0_dot"
-                      vars.push a_y
-                      vars.push dot_in if family == "s0s0_dot"
-                      vars.push cost if util == "cost"
-                      vars.push dims if util == "dims"
-                      p = BOAST::Procedure(function_name, vars){
-                          vars.shift
-                          case_args={}
-                          operations.each_with_index{|op, i|
-                              extra=nil
-                              if util == "cost" 
-                                  proc = kernels[i].cost_procedure
-                                  extra = cost
-                              elsif  util == "dims"
-                                  proc = kernels[i].dims_procedure
-                              else
-                                  proc = kernels[i].procedure
-                              end
-                              case_args[op] = lambda {
-                                  BOAST::pr proc.call(*vars)
-                              }
-                          }
-                          BOAST::pr BOAST::Case( op, case_args)
-                      }
-                      BOAST::pr p
-                      kernel.procedure = p
-                      f.puts kernel
-                      }
-                  }
+  	  ops.each{ |operation|
+              if util then 
+                kernels.push BOAST::const_get("#{precision_name}".upcase+"_#{operation.name}")
+              else 
+                kernels.push BOAST::const_get("#{precision_name}".upcase+"_#{operation.name}").kernel
+              end
+            }
+
+            kernel = BOAST::CKernel::new(:kernels => kernels)
+            vars = [op, d, idim, n, bc]
+            vars+=[nx, ny, narr] if util != "dims"
+            vars+=[x, y] if not util
+            vars.push a
+            vars.push a_x if family == "s0s0" or family == "s0s0_dot"
+            vars.push a_y
+            vars.push dot_in if family == "s0s0_dot"
+            vars.push cost if util == "cost"
+            vars.push dims if util == "dims"
+            p = BOAST::Procedure(function_name, vars){
+              vars.shift
+              case_args={}
+              ops.each_with_index{|op, i|
+                extra=nil
+                if util == "cost" 
+                  proc = kernels[i].cost_procedure
+                  extra = cost
+                elsif  util == "dims"
+                  proc = kernels[i].dims_procedure
+                else
+                  proc = kernels[i].procedure
+                end
+                case_args[op] = lambda {
+                  BOAST::pr proc.call(*vars)
+                }
               }
-              
-              generate_kernel.call()
-              generate_kernel.call("cost")
-              generate_kernel.call("dims")
+              BOAST::pr BOAST::Case( op, case_args)
+            }
+            BOAST::pr p
+            kernel.procedure = p
+            f.puts kernel
           }
+        }
       }
+      generate_kernel.call()
+      generate_kernel.call("cost")
+      generate_kernel.call("dims")
+    }
   }
 }
+
+
 
 
 # write Makefile.am to foldername
