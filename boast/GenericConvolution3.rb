@@ -238,8 +238,12 @@ class ConvolutionFilter < Filter
     pr out === out * Set(options[:a], out) if options[:a]
 
     finish_block = lambda {
-      pr options[:dot_in_tmp] === FMA(Load(options[:data_in][*i_in].set_align(out.type.total_size), out), out, options[:dot_in_tmp]) if options[:dot_in_tmp] #reduction !
       pr out === FMA(Load(options[:data_in][*i_in], out), Set(options[:a_x], out), out) if options[:a_x]
+      if(@vec_len > 1) then
+        pr options[:dot_in_tmp] === FMA(Load(options[:data_in][*i_in].set_align(out.type.total_size), out), out, options[:dot_in_tmp]) if options[:dot_in_tmp] #reduction !
+        pr options[:dot_in_tmp_scalar] === options[:dot_in_tmp_scalar] + @vec_len.times.collect { |l| options[:dot_in_tmp][l] }.reduce(:+) if options[:dot_in_tmp_scalar]
+      else 
+        pr options[:dot_in_tmp_scalar] === FMA(Load(options[:data_in][*i_in].set_align(out.type.total_size), out), out, options[:dot_in_tmp_scalar]) if options[:dot_in_tmp_scalar]     end
     }
     if @bc.grow? && (options[:dot_in_tmp] || options[:a_x]) && options[:side] != :center then
       if options[:side] == :begin then
@@ -1368,6 +1372,7 @@ class ConvolutionOperator1d
     end
     @vars.push @dot_in = Real("dot_in",:dir => :out) if options[:dot_in]
     @dot_in_tmp = nil
+    @dot_in_tmp_scalar = nil
     @cost = Int("cost", :dir => :out)
     @dim = Int("dim", :dir => :out)
     @idim = Int("idim", :dir => :out)
@@ -1596,9 +1601,11 @@ class ConvolutionOperator1d
       decl *([@filter.get_tt].flatten)
       @filter.decl_filter_val
       if @options[:dot_in] then
-        decl @dot_in_tmp = @dot_in.copy("dot_in_tmp", :vector_length => @shape.vector_length, :dir => nil, :direction => nil)
+        decl @dot_in_tmp = @dot_in.copy("dot_in_tmp", :vector_length => @shape.vector_length, :dir => nil, :direction => nil) if @shape.vector_length > 1
+        decl @dot_in_tmp_scalar = @dot_in.copy("dot_in_tmp_scalar", :dir => nil, :direction => nil) 
       else
         @dot_in_tmp = @dot_in
+	@dot_in_tmp_scalar = @dot_in
       end
 
       if @filter.get_mods then
@@ -1607,11 +1614,12 @@ class ConvolutionOperator1d
           pr @filter.compute_mod(@l, @shape.dim_n)
         }
       end
-      pr @dot_in_tmp.set(0.0) if @options[:dot_in]
-      pr OpenMP::Parallel(default: :shared, reduction: (@options[:dot_in] ? {"+" => @dot_in_tmp} : nil ), private: @shape.iterators + [@l] + [@filter.get_tt] + ( @filter.get_filter_val ? [@filter.get_filter_val].flatten : [] )) {
+      pr @dot_in_tmp.set(0.0) if @options[:dot_in] && @shape.vector_length > 1
+      pr @dot_in_tmp_scalar.set(0.0) if @options[:dot_in]
+      pr OpenMP::Parallel(default: :shared, reduction: (@options[:dot_in] ? {"+" => @dot_in_tmp_scalar} : nil ), private: @shape.iterators + [@l] + [@filter.get_tt] + ( @filter.get_filter_val ? [@filter.get_filter_val].flatten : [] )) {
         convolution1d
       }
-      pr @dot_in === @dot_in_tmp if @options[:dot_in] and get_lang == C
+      pr @dot_in === @dot_in_tmp_scalar if @options[:dot_in] && get_lang == C
     }
   end
 
@@ -1708,7 +1716,9 @@ class ConvolutionOperator1d
                                              :a => @a,
                                              :a_y => @a_y,
                                              :a_x => @a_x,
+                                             :dot_in => @dot_in,
                                              :dot_in_tmp => @dot_in_tmp,
+                                             :dot_in_tmp_scalar => @dot_in_tmp_scalar,
                                              :kinetic => @kinetic,
                                              :zero_out => @options[:zero_out],
                                              :data_in => @x,
