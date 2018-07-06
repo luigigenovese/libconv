@@ -1,4 +1,4 @@
-module BigDFT
+module LibConv
 
   class DataSpace
     attr_reader :data

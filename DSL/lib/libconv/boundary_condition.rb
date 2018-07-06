@@ -1,4 +1,4 @@
-module BigDFT
+module LibConv
   module BoundaryCondition
     Periodic = 0
     Per = Periodic

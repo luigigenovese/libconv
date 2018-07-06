@@ -1,4 +1,4 @@
-module BigDFT
+module LibConv
 
   class OrderedTransitions
 

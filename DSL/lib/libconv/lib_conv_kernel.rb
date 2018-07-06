@@ -1,7 +1,7 @@
 require 'fileutils'
 require 'yaml'
 
-module BigDFT
+module LibConv
 
   class << self
     attr_accessor :optims
@@ -9,7 +9,8 @@ module BigDFT
     attr_reader   :kernels
     attr_reader   :foldername
   end
-  @optims = { unroll_range: [1, 1], mod_arr_test: false, tt_arr_test: false, openmp: true }
+#  @optims = { unroll_range: [1, 1], mod_arr_test: false, tt_arr_test: false, openmp: true }
+#  @optims = { unroll_range: [2,8,2], mod_arr_test: false, tt_arr_test: false, openmp: true, vector_length: [2,4]}
   @foldername=Time.now().strftime("%Y-%m-%d_%H-%M-%S/")
   @kernels=[]
   unless File.directory?('.cache')
@@ -59,7 +60,7 @@ module BigDFT
 
     def initialize(conv_operation, op, optims)
       @op = op
-      if BigDFT.from_cache and File.exist?(".cache/#{conv_operation.procedure_name}.#{RbConfig::CONFIG['DLEXT']}")
+      if LibConv.from_cache and File.exist?(".cache/#{conv_operation.procedure_name}.#{RbConfig::CONFIG['DLEXT']}")
         BOAST.push_env( ffi: true ) {
           p = conv_operation.empty_procedure
           @kernel = BOAST::CKernel.new
@@ -86,7 +87,7 @@ module BigDFT
         @kernel.build
         @kernel.dump_module( ".cache/#{p.name}.#{RbConfig::CONFIG['DLEXT']}" )
 
-        BigDFT.dump_to_file(@kernel)
+        LibConv.dump_to_file(@kernel)
       end
       @cost_procedure = conv_operation.empty_procedure(:cost)
       @dims_procedure = conv_operation.empty_procedure(:dims)
@@ -121,7 +122,8 @@ module BigDFT
   end
 
   class MagicFilterKernel1d < LibConvKernel
-    def initialize(filter, op, optims = BigDFT.optims)
+    def initialize(filter, op, optims = LibConv.optims)
+      puts optims.inspect
       @filter = filter
       conv_operation = GenericConvolution::GenericConvolutionOperator1d.new(filter, ld: true, narr: true, a_x: true, a_y: true, a: true)
       @default_options = { narr: 1, a_x: 0.0, a_y: 0.0, a: 1.0 }
@@ -168,7 +170,7 @@ module BigDFT
   end
 
   class WaveletKernel1d < LibConvKernel
-    def initialize(wavelet_filter, op, optims = BigDFT.optims)
+    def initialize(wavelet_filter, op, optims = LibConv.optims)
       @filter = wavelet_filter
       conv_operation = GenericConvolution::GenericConvolutionOperator1d.new(wavelet_filter, a: true, a_y: true, ld: true, narr: true)
       @default_options = { narr: 1, a_y: 0.0, a: 1.0 }
@@ -214,7 +216,7 @@ module BigDFT
 
 
   class KineticKernel1d < LibConvKernel
-    def initialize(filter, op, optims = BigDFT.optims)
+    def initialize(filter, op, optims = LibConv.optims)
       @filter = filter
       conv_operation = GenericConvolution::GenericConvolutionOperator1d.new(filter,kinetic: :inplace, ld: true, narr: true, a_x: true, a_y: true, a: true, dot_in: true)
       @default_options = { narr: 1, a_x: 1.0, a_y: 1.0, a: 1.0 }
@@ -249,7 +251,7 @@ module BigDFT
 
 
 class PoissonKernel1d < LibConvKernel
-def initialize(conv_filter, op, optims = BigDFT.optims)
+def initialize(conv_filter, op, optims = LibConv.optims)
     @filter = conv_filter
     conv_operation = GenericConvolution::GenericConvolutionOperator1d.new(conv_filter, ld: false, narr: false, a: true, poisson: true)
     @default_options = { narr: 0, a_y: 0.0, a: 1.0 }
@@ -277,71 +279,5 @@ def initialize(conv_filter, op, optims = BigDFT.optims)
                   target.data_space.data,
                   opts[:a])
     end
-end
-
-  def self.const_name(operation, config)
-
-    wavelet_family = config[:wavelet_family]
-    precision = config[:precision]
-    case precision
-    when 4
-      precision_name = "S"
-    when 8
-      precision_name = "D"
-    end
-
-    return "#{precision_name}_#{wavelet_family}_#{operation}"
-
   end
-
-  CONFIGURATION = BOAST::BruteForceOptimizer::new( BOAST::OptimizationSpace::new( {precision: [4, 8], wavelet_family: ["SYM4", "SYM8"] } ) )
-
-  CONFIGURATION.each { |config|
-    wavelet_family = config[:wavelet_family]
-    wavelet_name = wavelet_family.downcase
-    precision = config[:precision]
-
-    BOAST.push_env( default_real_size: precision ) {
-      wvals = const_get(wavelet_family+"_LP")
-      mfvals = const_get(wavelet_family+"_MF")
-
-      kf2 = GenericConvolution::ConvolutionFilter.new(wavelet_name+'_d2', const_get(wavelet_family+"_D2"), const_get(wavelet_family+"_D2").length/2)
-      const_set(const_name("D2", config), KineticKernel1d.new( kf2, :kd2))
-
-      kf1 = GenericConvolution::ConvolutionFilter.new(wavelet_name+'_d1', const_get(wavelet_family+"_D1"), const_get(wavelet_family+"_D1").length/2)
-      const_set(const_name("D1", config), KineticKernel1d.new( kf1, :kd1))
-
-
-      wf = GenericConvolution::WaveletFilterDecompose.new(wavelet_name, wvals)
-      const_set(const_name("DWT", config), WaveletKernel1d.new( wf, :dwt))
-
-      iwf = GenericConvolution::WaveletFilterRecompose.new(wavelet_name, wvals)
-      const_set(const_name("IDWT", config), WaveletKernel1d.new( iwf, :idwt))
-
-      cf = GenericConvolution::ConvolutionFilter.new(wavelet_name+'_md', mfvals.reverse, mfvals.length/2)
-      const_set(const_name("MF", config), MagicFilterKernel1d.new( cf, :mf))
-
-      icf = GenericConvolution::ConvolutionFilter.new(wavelet_name+'_imd', mfvals, mfvals.length/2 - 1)
-      const_set(const_name("IMF", config), MagicFilterKernel1d.new( icf, :imf))
-
-      s1s0wf = GenericConvolution::WaveletFilterRecompose.new(wavelet_name+"icomb", wvals, convolution_filter: cf)
-      const_set(const_name("S1TOR", config), WaveletKernel1d.new( s1s0wf, :s1tor ))
-
-      s0s1wf = GenericConvolution::WaveletFilterDecompose.new(wavelet_name+"icomb", wvals, convolution_filter: cf)
-      const_set(const_name("RTOS1", config), WaveletKernel1d.new( s0s1wf, :rtos1 ))
-    }
-  }
- CONFIGURATION_POISSON = BOAST::BruteForceOptimizer::new( BOAST::OptimizationSpace::new( {precision: [4, 8], wavelet_family: ["NABLA"]}))
- CONFIGURATION_POISSON.each { |config|
-   precision = config[:precision]
-   BOAST.push_env( default_real_size: precision ) {	
-     nords=[2,4,6,8,16]
-     nords.each{ |nord_n|
-       filter=const_get("NABLA_"+nord_n.to_s)
-       conv_filter = GenericConvolution::PoissonFilter::new('poisson'+nord_n.to_s,filter.each_slice(nord_n+1).to_a,nord_n)
-       const_set(const_name("PS"+nord_n.to_s, config), PoissonKernel1d.new( conv_filter, :ps))
-     }
-   }
- }
- 
 end

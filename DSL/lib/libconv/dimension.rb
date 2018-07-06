@@ -1,4 +1,4 @@
-module BigDFT
+module LibConv
 
   class Dimension
     attr_reader :dim

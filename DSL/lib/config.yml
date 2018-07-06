@@ -1,0 +1,34 @@
+---
+:libconv:
+  :precisions: 
+   - 4
+   - 8
+  :wavelet_families : 
+   - SYM8
+   - SYM4
+  :operations: 
+   - MF
+   - IMF
+   - DWT 
+   - RTOS1
+   - IDWT
+   - S1TOR
+   - D1
+   - D2
+   - NABLA
+  :families: 
+   - s0s0
+   - s0s0_dot
+   - s0s1
+   - s1s0
+:optims:
+  :unroll_range: 
+   - 2
+   - 8
+   - 2
+  :mod_arr_test: true
+  :tt_arr_test: true
+  :openmp: true
+  :vector_length: 
+   - 2
+   - 4

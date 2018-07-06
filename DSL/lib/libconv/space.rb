@@ -1,4 +1,4 @@
-module BigDFT
+module LibConv
 
   module Space
     module SpaceMethods
@@ -10,7 +10,7 @@ module BigDFT
       def bind_ops(op)
         table = {}
         CONFIGURATION.each { |config|
-          table[config] = BigDFT::const_get(BigDFT::const_name(op, config))
+          table[config] = LibConv::const_get(LibConv::const_name(op, config))
         }
         return table
       end

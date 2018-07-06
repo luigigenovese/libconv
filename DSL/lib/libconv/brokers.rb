@@ -1,5 +1,5 @@
 #This generates high level brokers for libconv, as well as header files to use for compilation against libconv, and a Makefile.
-module Brokers
+module LibConv
   prec = BOAST::Int("prec", :dir => :in)
   op = BOAST::Int("op", :dir => :in, :reference => 1)
   d = BOAST::Int("d", :dir => :in, :reference => 1)
@@ -10,28 +10,28 @@ module Brokers
   ny = BOAST::Int("ny", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
   narr = BOAST::Int("narr", :dir => :in, :reference => 1)
   kernels=[]
-  precisions=[4,8]
-  wavelet_families=["SYM8", "SYM4"]
-  operations=["MF","IMF","DWT","RTOS1","IDWT","S1TOR","D1","D2"]
-  families=["s0s0", "s0s0_dot", "s0s1", "s1s0"]
-  dimensions=["1d"]
+#  precisions=[4,8]
+#  wavelet_families=["SYM8", "SYM4"]
+#  operations=["MF","IMF","DWT","RTOS1","IDWT","S1TOR","D1","D2"]
+#  families=["s0s0", "s0s0_dot", "s0s1", "s1s0"]
+#  dimensions=["1d"]
 
-  def self.const_name(wavelet_family, operation)
-    return "#{precision_name}_#{wavelet_family}_#{operation}"
+#  def self.const_name(wavelet_family, operation)
+#    return "#{precision_name}_#{wavelet_family}_#{operation}"
 
-  end
+#  end
 
   id=0
-  wavelet_families.each{ |wav_fam|
-    operations.each{ |op|
+  @wavelet_families.each{ |wav_fam|
+    @operations.each{ |op|
     const_set("#{wav_fam}_#{op}", BOAST::Int("#{wav_fam}_#{op}", :constant => id) )
     id +=1
     }
   }
 #generate both Fortran and C header files every time
     foldername=""
-    if not BigDFT.from_cache then
-      foldername = BigDFT::foldername
+    if not from_cache then
+      foldername = foldername
     end
 
   ["C", "Fortran"].each { |l|
@@ -47,20 +47,20 @@ module Brokers
 
     if l == "C" then
       f.puts "enum ops{"
-      wavelet_families.each{ |wav_fam|
-        operations.each{ |op|
+      @wavelet_families.each{ |wav_fam|
+        @operations.each{ |op|
           f.print "#{wav_fam}_#{op}"
-          f.print "," if op != operations.last
+          f.print "," if op != @operations.last
         }
       }
       f.puts "};"
     else 
-      wavelet_families.each{ |wav_fam|
+      @wavelet_families.each{ |wav_fam|
 #       f.puts "module brokers"
-        operations.each{ |op|
+        @operations.each{ |op|
         f.print "integer :: " if id%3 == 0
         f.print "#{wav_fam}_#{op}"
-        if id%3 != 2 and  !(op == operations.last and wav_fam == wavelet_families.last)
+        if id%3 != 2 and  !(op == @operations.last and wav_fam == @wavelet_families.last)
           f.print ", "
         else
           f.puts ""
@@ -69,8 +69,8 @@ module Brokers
         }
       }
       id=0
-      wavelet_families.each{ |wav_fam|
-        operations.each{ |op|
+      @wavelet_families.each{ |wav_fam|
+        @operations.each{ |op|
           f.puts "parameter(#{wav_fam}_#{op}=#{id})"
           id+=1
         }
@@ -91,9 +91,9 @@ module Brokers
     f.puts  "#include <stdint.h>"
   end
 
-#  families.each{ |family|
-#      dimensions.each{ |dimension|
-#          precisions.each{ |precision|
+#  @families.each{ |family|
+#      @dimensions.each{ |dimension|
+#          @precisions.each{ |precision|
 #              case precision
 #              when 4
 #                  precision_name = "s_"
@@ -116,30 +116,38 @@ module Brokers
       
 #  f.puts "contains" if BOAST::get_lang == BOAST::FORTRAN
   
-  families.each{ |family|
-      ops=[]
-    wavelet_families.each{ |wav_fam|
+  @families.each{ |family|
+    ops=[]
+    @wavelet_families.each{ |wav_fam|
       case family
         when "s0s0"
-          ops.push(*[const_get("#{wav_fam}_MF"), const_get("#{wav_fam}_IMF")])
+          ops.push(const_get("#{wav_fam}_MF")) if @operations.include? "MF"
+          ops.push(const_get("#{wav_fam}_IMF")) if @operations.include? "IMF"
         when "s0s0_dot"
-          ops.push(*[const_get("#{wav_fam}_D1"), const_get("#{wav_fam}_D2")])
+          ops.push(const_get("#{wav_fam}_D1")) if @operations.include? "D1"
+          ops.push(const_get("#{wav_fam}_D2")) if @operations.include? "D2"
         when "s0s1"
-          ops.push(*[const_get("#{wav_fam}_DWT"), const_get("#{wav_fam}_RTOS1")])
+          ops.push(const_get("#{wav_fam}_DWT")) if @operations.include? "DWT"
+          ops.push(const_get("#{wav_fam}_RTOS1")) if @operations.include? "RTOS1"
         when "s1s0"
-          ops.push(*[const_get("#{wav_fam}_IDWT"), const_get("#{wav_fam}_S1TOR")])
+          ops.push(const_get("#{wav_fam}_IDWT")) if @operations.include? "IDWT"
+          ops.push(const_get("#{wav_fam}_S1TOR")) if @operations.include? "S1TOR"
       end
     }
-    precisions.each{ |precision|
+    break if ops.length ==0
+    
+    @precisions.each{ |precision|
       case precision
         when 4
           precision_name = "s"
         when 8
           precision_name = "d"
+        else
+          puts precision
       end
       generate_kernel = Proc.new  { |util|
         BOAST.push_env( default_real_size: precision ){
-          dimensions.each{ |dimension|
+          @dimensions.each{ |dimension|
             kernels=[]
             function_name = "#{precision_name}_#{family}_#{dimension}"
             function_name += "_#{util}" if util
@@ -152,12 +160,11 @@ module Brokers
             y=BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()] )
             cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
             dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
-
   	  ops.each{ |operation|
               if util then 
-                kernels.push BOAST::const_get("#{precision_name}".upcase+"_#{operation.name}")
+                kernels.push const_get("#{precision_name}".upcase+"_#{operation.name}")
               else 
-                kernels.push BOAST::const_get("#{precision_name}".upcase+"_#{operation.name}").kernel
+                kernels.push const_get("#{precision_name}".upcase+"_#{operation.name}").kernel
               end
             }
 
@@ -208,7 +215,7 @@ module Brokers
 
 # write Makefile.am to foldername
 
-if not BigDFT.from_cache then
+if not LibConv.from_cache then
     compiler_options = BOAST::get_compiler_options
 
     makelines="""
@@ -222,7 +229,7 @@ if not BigDFT.from_cache then
     
     libconv_a_SOURCES = """
 
-    BigDFT::kernels.each{|f| makelines+=f.to_str+"\\\n"}
+    LibConv::kernels.each{|f| makelines+=f.to_str+"\\\n"}
 
     makelines+=" #{filename}\n"
 
@@ -232,7 +239,7 @@ if not BigDFT.from_cache then
 #	    gfortran $(AM_FCFLAGS) -c $< \n
 #    libconv.a: $(libconv_a_OBJECTS)
 #	    gfortran $(AM_FCFLAGS) -c -o $@ $^"
-    File::open("#{BigDFT::foldername}Makefile.am","w") {|f|
+    File::open("#{LibConv::foldername}Makefile.am","w") {|f|
       f.puts makelines
     }
 end

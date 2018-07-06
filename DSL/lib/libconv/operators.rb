@@ -1,5 +1,5 @@
 require 'rgl/implicit'
-module BigDFT
+module LibConv
 
   class OpBase
 
