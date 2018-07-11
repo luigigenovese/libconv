@@ -123,7 +123,6 @@ module LibConv
 
   class MagicFilterKernel1d < LibConvKernel
     def initialize(filter, op, optims = LibConv.optims)
-      puts optims.inspect
       @filter = filter
       conv_operation = GenericConvolution::GenericConvolutionOperator1d.new(filter, ld: true, narr: true, a_x: true, a_y: true, a: true)
       @default_options = { narr: 1, a_x: 0.0, a_y: 0.0, a: 1.0 }

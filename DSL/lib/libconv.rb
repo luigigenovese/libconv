@@ -45,8 +45,16 @@ module LibConv
     }
   end
 
+  require_relative 'libconv/lib_conv_kernel'
 
-require_relative 'libconv/lib_conv_kernel'
+
+  puts "Libconv : generating convolutions in "+ ((BOAST::get_lang == BOAST::C) ? "C" : "Fortran")
+  puts "Operations : "+ @operations.inspect
+  puts "Precisions : "+ @precisions.inspect
+  puts "Filters families : "+ @wavelet_families.inspect
+  puts "Optimizations : "+ @optims.inspect
+  puts "Output dir : " + @foldername
+  if @from_cache then puts "WARNING : using cached convolutions. Purge .cache dir if not wanted. Headers and brokers will be generated in current dir" end
 
   def self.const_name(operation, config)
 
