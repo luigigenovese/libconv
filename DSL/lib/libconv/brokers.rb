@@ -10,16 +10,6 @@ module LibConv
   ny = BOAST::Int("ny", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
   narr = BOAST::Int("narr", :dir => :in, :reference => 1)
   kernels=[]
-#  precisions=[4,8]
-#  wavelet_families=["SYM8", "SYM4"]
-#  operations=["MF","IMF","DWT","RTOS1","IDWT","S1TOR","D1","D2"]
-#  families=["s0s0", "s0s0_dot", "s0s1", "s1s0"]
-#  dimensions=["1d"]
-
-#  def self.const_name(wavelet_family, operation)
-#    return "#{precision_name}_#{wavelet_family}_#{operation}"
-
-#  end
 
   id=0
   @wavelet_families.each{ |wav_fam|
@@ -28,12 +18,13 @@ module LibConv
     id +=1
     }
   }
+
 #generate both Fortran and C header files every time
     foldername=""
-    if not from_cache then
+    if not LibConv.from_cache then
       foldername = foldername
     end
-
+  lang = BOAST::get_lang
   ["C", "Fortran"].each { |l|
     if l == "C" then
       header = "libconv.h"
@@ -46,6 +37,7 @@ module LibConv
     id=0
 
     if l == "C" then
+      BOAST::set_lang(BOAST::C)
       f.puts "enum ops{"
       @wavelet_families.each{ |wav_fam|
         @operations.each{ |op|
@@ -54,7 +46,18 @@ module LibConv
         }
       }
       f.puts "};"
+
+      #print filters
+      @wavelet_families.each{ |wav_fam|
+        ["MF", "LP", "D1", "D2"].each{ |fil|
+          filter =BOAST::const_get(wav_fam+"_"+fil)
+          filt = GenericConvolution::ConvolutionFilter.new(wav_fam+'_'+fil, filter, filter.length/2-1)
+          filt.decl_filters
+        }
+      }
+      BOAST::set_lang(lang)
     else 
+      BOAST::set_lang(BOAST::FORTRAN)
       @wavelet_families.each{ |wav_fam|
 #       f.puts "module brokers"
         @operations.each{ |op|
@@ -75,7 +78,16 @@ module LibConv
           id+=1
         }
       }
+      #print filters
+      @wavelet_families.each{ |wav_fam|
+        ["MF", "LP", "D1", "D2"].each{ |fil|
+          filter =BOAST::const_get(wav_fam+"_"+fil)
+          filt = GenericConvolution::ConvolutionFilter.new(wav_fam+'_'+fil, filter, filter.length/2-1)
+          filt.decl_filters
+        }
+      }
 #       f.puts "end module brokers"
+    BOAST::set_lang(lang)
     end
     }
   }
