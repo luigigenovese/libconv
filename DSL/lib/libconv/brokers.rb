@@ -115,7 +115,6 @@ module LibConv
 #      }
       
 #  f.puts "contains" if BOAST::get_lang == BOAST::FORTRAN
-  
   @families.each{ |family|
     ops=[]
     @wavelet_families.each{ |wav_fam|
@@ -134,7 +133,7 @@ module LibConv
           ops.push(const_get("#{wav_fam}_S1TOR")) if @operations.include? "S1TOR"
       end
     }
-    break if ops.length ==0
+    next if ops.length ==0
     
     @precisions.each{ |precision|
       case precision
@@ -143,7 +142,7 @@ module LibConv
         when 8
           precision_name = "d"
         else
-          puts precision
+          puts "unknown precision :"+precision
       end
       generate_kernel = Proc.new  { |util|
         BOAST.push_env( default_real_size: precision ){
