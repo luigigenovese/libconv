@@ -6,7 +6,7 @@ module LibConv
     
     def initialize( dim, space )
       @dim = dim
-      raise "Unknown space #{space.inspect}!" unless [:s1, :s0, :r].include?(space)
+      raise "Unknown space #{space.inspect}!" unless [:s1, :s0, :r, :d1, :d2].include?(space)
       @space = space
     end
 
@@ -56,7 +56,16 @@ module LibConv
     def s0_data_shape
       [ 2, s0_dim/2 ]
     end
-
+    
+    alias d1_dim s1_dim
+    alias d1_shape s0_shape
+    alias d1_ld s0_ld
+    alias d1_data_shape s0_data_shape
+    alias d2_dim s1_dim
+    alias d2_shape s0_shape
+    alias d2_ld s0_ld
+    alias d2_data_shape s0_data_shape
+    
     def get_dim( space )
       send("#{space}_dim")
     end

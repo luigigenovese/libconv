@@ -287,5 +287,21 @@ class TestWaveFunction < Minitest::Test
     w3 = w3.to(:s0).to(:s1)
     assert_wfn_equal( w2, w3, 10e-15 )
   end
+  
+  def test_d1
+    d1 = System::new([124, 132, 130], [BC::Per, BC::Per, BC::Per], :s0)
+    dot = 0.0
+    w = WaveFunction::new(d1, random: true, dot_in: dot)
+    w2 = w.to(:d1)
+    assert_equal(w.dimensions.to_a, w2.dimensions.to_a)
+  end
+  
+  def test_d2
+    d2 = System::new([124, 132, 130], [BC::Per, BC::Per, BC::Per], :s0)
+    dot = 0.0
+    w = WaveFunction::new(d2, random: true, dot_in: dot)
+    w2 = w.to(:d2)
+    assert_equal(w.dimensions.to_a, w2.dimensions.to_a)
+  end
 
 end

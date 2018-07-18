@@ -53,7 +53,7 @@ module LibConv
       @reference_space      = reference_space
       raise "Invalid reference dimensions #{reference_dimensions} in #{reference_space}!" if [:s1, :s0].include?( reference_space ) && !@reference_dimensions.all?(&:even?)
       @boundary_conditions  = boundary_conditions
-      @padding              = options.fetch(:padding, { s1: 4, s0: 4, r: 4 })
+      @padding              = options.fetch(:padding, { s1: 4, s0: 4, d1: 4, d2: 4, r: 4 })
       raise "Boundary conditions and reference dimensions must have the same arity (#{boundary_conditions.length} != #{@dimension})!" if boundary_conditions.length != @dimension
       @transitions          = options.fetch(:transitions, OrderedTransitions::new(:s1, :s0, :r, :grow))
     end

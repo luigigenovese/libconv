@@ -243,7 +243,8 @@ module LibConv
                   target.data_space.data,
                   opts[:a],
                   opts[:a_x],
-                  opts[:a_y])
+                  opts[:a_y],
+                  opts[:dot_in])
     end
 
   end

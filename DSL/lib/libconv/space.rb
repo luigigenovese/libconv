@@ -62,6 +62,8 @@ module LibConv
     module S0Methods
       attr_reader :s0r
       attr_reader :s0s1
+      attr_reader :s0d1
+      attr_reader :s0d2
 
       def transition_operator(space)
         case space
@@ -69,6 +71,10 @@ module LibConv
           @s0r
         when :s1
           @s0s1
+        when :d1
+          @s0d1
+        when :d2
+          @s0d2
         else
           super
         end
@@ -87,7 +93,11 @@ module LibConv
     @s0r.default = D_SYM8_MF
     @s0s1 = bind_ops("DWT")
     @s0s1.default = D_SYM8_DWT
-
+    @s0d1 = bind_ops("D1")
+    @s0d1.default = D_SYM8_D1
+    @s0d2 = bind_ops("D2")
+    @s0d2.default = D_SYM8_MF
+    
   end
 
   module R
