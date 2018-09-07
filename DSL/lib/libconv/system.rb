@@ -82,7 +82,9 @@ module LibConv
         if space[i] == @reference_space
           d
         else
-          op = @spaces[@reference_space].transition_operator(space[i])[nil]
+          op_opt = { wavelet_family: @wavelet_family, precision: 8 }
+          raise "wavelet family likely wasn't set in the input file !!" if not @spaces[@reference_space].transition_operator(space[i]).has_key? op_opt
+          op = @spaces[@reference_space].transition_operator(space[i])[op_opt]
           op.dims_from_in(d, bc_from_transition(i, @reference_space, space[i])).last
         end
       end
