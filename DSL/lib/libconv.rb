@@ -53,7 +53,8 @@ module LibConv
   puts "Precisions : "+ @precisions.inspect
   puts "Filters families : "+ @wavelet_families.inspect
   puts "Optimizations : "+ @optims.inspect
-  puts "Output dir : " + @foldername
+  if @optims.has_key? :vector_length and BOAST::get_lang != BOAST::C then puts "WARNING : vectorization asked in Fortran, will be ignored" end 
+  puts "Output dir : " + @foldername + " config file " + input
   if @from_cache then puts "WARNING : using cached convolutions. Purge .cache dir if not wanted. Headers and brokers will be generated in current dir" end
 
   def self.const_name(operation, config)
