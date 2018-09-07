@@ -7,6 +7,7 @@ require 'libconv/wave_function'
 include LibConv
 
 require 'minitest/autorun'
+require_relative 'libconv/refs'
 require_relative 'libconv/system'
 require_relative 'libconv/wave_function'
 

@@ -22,7 +22,7 @@ module LibConv
 #generate both Fortran and C header files every time
     foldername=""
     if not LibConv.from_cache then
-      foldername = foldername
+      foldername = LibConv::foldername
     end
   lang = BOAST::get_lang
   ["C", "Fortran"].each { |l|

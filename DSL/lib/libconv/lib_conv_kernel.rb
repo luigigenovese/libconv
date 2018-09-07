@@ -217,8 +217,8 @@ module LibConv
   class KineticKernel1d < LibConvKernel
     def initialize(filter, op, optims = LibConv.optims)
       @filter = filter
-      conv_operation = GenericConvolution::GenericConvolutionOperator1d.new(filter,kinetic: :inplace, ld: true, narr: true, a_x: true, a_y: true, a: true, dot_in: true)
-      @default_options = { narr: 1, a_x: 1.0, a_y: 1.0, a: 1.0 }
+      conv_operation = GenericConvolution::GenericConvolutionOperator1d.new(filter,kinetic: :inplace, ld: true, narr: true, a_x: true, a_y: true, a: true, dot_in: true, transpose: true)
+      @default_options = { narr: 1.0, a_x: 1.0/3.0, a_y: 1.0, a: 1.0, dot_in: 0.0 }
       super( conv_operation, op, optims )
     end
 

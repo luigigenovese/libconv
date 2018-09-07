@@ -5,6 +5,7 @@ class TestSystem < Minitest::Test
     @s2 = System::new([42, 28, 24], [BC::Free, BC::Per, BC::Free], :s0)
     @s3 = System::new([99, 56, 61], [BC::Free, BC::Per, BC::Free], :r)
     @s4 = System::new([100, 28, 54], [BC::Free, BC::Per, BC::Free], :s1, transitions:  OrderedTransitions::new(:s1, :s0, :r, :shrink))
+    @s5 = System::new([42, 28, 24], [BC::Free]*3, :s1, wavelet_family: "SYM4")
   end
 
   def test_system_new
@@ -44,6 +45,13 @@ class TestSystem < Minitest::Test
     assert_equal([100- 14, 28, 54 - 14], @s4.dimensions(:s0))
     assert_equal([100- 29, 28, 54 - 29], @s4.dimensions(:r))
     assert_equal([100, 28, 54 - 29], @s4.dimensions([:s1, :s0, :r]))
+  end
+  
+  def test_dimensions_sym4
+    assert_equal([42, 28, 24], @s5.dimensions(:s1))
+    assert_equal([42 + 6, 28 + 6, 24 + 6], @s5.dimensions(:s0))
+    assert_equal([42 + 13, 28 + 13, 24 + 13], @s5.dimensions(:r))
+    assert_equal([42, 28 + 6, 24 + 13], @s5.dimensions([:s1, :s0, :r]))
   end
 
   def test_shapes

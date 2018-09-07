@@ -1619,7 +1619,7 @@ class ConvolutionOperator1d
       pr OpenMP::Parallel(default: :shared, reduction: (@options[:dot_in] ? {"+" => @dot_in_tmp_scalar} : nil ), private: @shape.iterators + [@l] + [@filter.get_tt] + ( @filter.get_filter_val ? [@filter.get_filter_val].flatten : [] )) {
         convolution1d
       }
-      pr @dot_in === @dot_in_tmp_scalar if @options[:dot_in] && get_lang == C
+      pr @dot_in === @dot_in_tmp_scalar if @options[:dot_in]
     }
   end
 

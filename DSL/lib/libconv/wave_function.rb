@@ -5,13 +5,13 @@ module BOAST
     attr_reader   :system
     attr_reader   :spaces
     attr_reader   :m
-    attr_reader   :dot_in
+    attr_reader   :kinetic
     
     def initialize(system, **options)
       @system = system
       @spaces = options.fetch(:spaces, [@system.reference_space]*@system.dimension)
       @m      = options.fetch(:m, 1)
-      @dot      = options.fetch(:dot_in, 0)
+      @kinetic      = options.fetch(:kinetic, 0)
       @precision = options.fetch(:precision, 8)
       raise "Invalid space dimension #{@spaces.length}!" if @spaces.length != @system.dimension
       @data_space = DataSpace::new(*@system.shapes(@spaces), random: options[:random], m: @m, precision: @precision )
@@ -32,18 +32,22 @@ module BOAST
       raise "Invalid space dimension #{target_spaces.length}!" if target_spaces.length != @system.dimension
       source_spaces = @spaces.dup
       source = self
+      target = nil
       target_spaces.each_with_index { |s,i|
         next if s == source_spaces[i]
         target_spaces = source_spaces.dup
         target_spaces[i] = s
-        target = self.class::new(@system, spaces: target_spaces, m: @m, precision: @precision)
+        target = self.class::new(@system, spaces: target_spaces, m: @m, precision: @precision) if i == 0 or @kinetic == 0
         op_opt = { wavelet_family: @system.wavelet_family, precision: @precision }
         operator = @system.spaces[source_spaces[i]].transition_operator(s)[op_opt]
         bc = @system.bc_from_transition(i, source_spaces[i], s)
-        operator.run( i, bc, source, target, narr: @m, dot_in:@dot )
-        source_spaces = target_spaces
-        source = target
+        operator.run( i, bc, source, target, narr: @m, dot_in:@kinetic )
+        if @kinetic == 0
+          source_spaces = target_spaces 
+          source = target
+        end
       }
+      return target if @kinetic != 0 
       return source
     end
 

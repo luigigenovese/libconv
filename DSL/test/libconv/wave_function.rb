@@ -288,20 +288,55 @@ class TestWaveFunction < Minitest::Test
     assert_wfn_equal( w2, w3, 10e-15 )
   end
   
-  def test_d1
-    d1 = System::new([124, 132, 130], [BC::Per, BC::Per, BC::Per], :s0)
-    dot = 0.0
-    w = WaveFunction::new(d1, random: true, dot_in: dot)
-    w2 = w.to(:d1)
-    assert_equal(w.dimensions.to_a, w2.dimensions.to_a)
-  end
-  
-  def test_d2
-    d2 = System::new([124, 132, 130], [BC::Per, BC::Per, BC::Per], :s0)
-    dot = 0.0
-    w = WaveFunction::new(d2, random: true, dot_in: dot)
-    w2 = w.to(:d2)
-    assert_equal(w.dimensions.to_a, w2.dimensions.to_a)
+  def test_to_s1s0_sym4
+    s1sym4 = System::new([42, 28, 24], [BC::Free, BC::Per, BC::Free], :s1, wavelet_family: "SYM4")
+    5.times do |i|
+    w = WaveFunction::new(s1sym4, random: true)
+    w2 = w.to([:s0, :s1, :s1])
+    refute_equal( w.data_space.data, w2.data_space.data )
+    assert_equal( w2.shape.to_a, w2.data_space.data.shape )
+    w3 = w2.to([:s1, :s1, :s1])
+    assert_wfn_equal( w, w3, 10e-16 )
+
+    w2 = w.to([:s1, :s0, :s1])
+    refute_equal( w.data_space.data, w2.data_space.data )
+    assert_equal( w2.shape.to_a, w2.data_space.data.shape )
+    w3 = w2.to([:s1, :s1, :s1])
+    assert_wfn_equal( w, w3, 10e-16 )
+
+
+    w2 = w.to([:s1, :s1, :s0])
+    refute_equal( w.data_space.data, w2.data_space.data )
+    assert_equal( w2.shape.to_a, w2.data_space.data.shape )
+    w3 = w2.to([:s1, :s1, :s1])
+    assert_wfn_equal( w, w3, 10e-16 )
+
+    w2 = w.to([:s0, :s0, :s0])
+    w2p = w.to([:s0, :s1, :s1])
+    w3p = w2p.to([:s0, :s0, :s1])
+    w4p = w3p.to([:s0, :s0, :s0])
+    assert_wfn_equal( w2, w4p, 10e-16 )
+    w3 = w2.to([:s1, :s1, :s1])
+    assert_wfn_equal( w, w3, 10e-15 )
+    end
   end
 
+  def test_kinetic_ref
+    n1=124
+    n2=132
+    n3=130
+    d2 = System::new([n1, n2, n3], [BC::Per, BC::Per, BC::Per], :s0)
+    w = WaveFunction::new(d2, random: true, kinetic: 1)
+    
+    hgrid = NArray.float(3)
+    hgrid[0] = 1
+    hgrid[1] = 1
+    hgrid[2] = 1
+    output_ref = ANArray::float(64,*w.restricted_shape)
+    kinetic_per_ref.run(n1, n2, n3, hgrid, w.restricted_data, output_ref, 1.0)
+    w2 = w.to(:d2)
+
+    assert( (output_ref - w2.restricted_data).abs.max < 10e-9 )
+
+  end
 end
