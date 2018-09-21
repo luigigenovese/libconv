@@ -57,6 +57,11 @@ module LibConv
   puts "Output dir : " + @foldername + " config file " + input
   if @from_cache then puts "WARNING : using cached convolutions. Purge .cache dir if not wanted. Headers and brokers will be generated in current dir" end
 
+if not LibConv.from_cache then
+  Dir.mkdir("#{@foldername}") if not Dir.exist?(@foldername)
+  FileUtils::copy(ARGV[0],@foldername)
+end
+
   def self.const_name(operation, config)
 
     wavelet_family = config[:wavelet_family]
