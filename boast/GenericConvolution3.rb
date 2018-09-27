@@ -1375,6 +1375,7 @@ class ConvolutionOperator1d
     @dot_in_tmp_scalar = nil
     @cost = Int("cost", :dir => :out)
     @dim = Int("dim", :dir => :out)
+    @vec = Int("vec", :dir => :out)
     @idim = Int("idim", :dir => :out)
     @dimensions = Int("dims", :dim => [ Dim() ], :dir => :out)
     @l = Int :l
@@ -1575,7 +1576,6 @@ class ConvolutionOperator1d
     end
     if util == :dims then
       args = []
-#      args.push(@idim)
       args.push(@shape.processed_dim)
       args.push(@dim)
       return Procedure(function_name, args){
@@ -1590,6 +1590,14 @@ class ConvolutionOperator1d
         else
           pr @dim === @shape.non_processed_dims.first
         end
+      }
+    end
+    if util == :align then
+      args = []
+            args.push(@shape.processed_dim)
+      args.push(@vec)
+      return Procedure(function_name, args){
+        pr @vec === @shape.vector_length * 8
       }
     end
     @filter.init_optims(tt_arr, mod_arr, unroll_inner, @shape.unroll_length, @shape.vector_length)
@@ -1776,6 +1784,7 @@ class GenericConvolutionOperator1d
     @vars.push @dot_in = Real("dot_in",:dir => :out) if options[:dot_in]
     @cost = Int( "cost", :dir => :out )
     @dimensions = Int( "dims", :dim => [Dim(0, @ndim - 1)], :dir => :out )
+    @alignment = Int( "alignment", :dim => [Dim(0, @ndim - 1)], :dir => :out )
 
     @transpose = 0
     @options=options.dup
@@ -1817,12 +1826,15 @@ class GenericConvolutionOperator1d
           @procs[p.base_name] = p.procedure
           @procs[p.base_name+"_cost"] = p.procedure( :util => :cost )
           @procs[p.base_name+"_dims"] = p.procedure( :util => :dims )
+          @procs[p.base_name+"_align"] = p.procedure( :util => :align )
         }
       }
     }
     p = self.procedure(:cost).first
     @procs[p.name] = p
     p = self.procedure(:dims).first
+    @procs[p.name] = p
+    p = self.procedure(:align).first
     @procs[p.name] = p
   end
 
@@ -1893,7 +1905,7 @@ class GenericConvolutionOperator1d
       xindex += 1 if @narr
     #remove x and y
       vv.slice!(xindex, 2)
-    elsif util == :dims then
+    elsif util == :dims or util == :align then
       xindex = 4
       n = 0
       n += 2 if @ld
@@ -1903,6 +1915,7 @@ class GenericConvolutionOperator1d
     end
     vv += [ @cost ] if util == :cost
     vv += [ @dimensions ] if util == :dims
+    vv += [ @alignment ] if util == :align
     p = Procedure( function_name, vv )
   end
 
@@ -1917,7 +1930,7 @@ class GenericConvolutionOperator1d
       xindex += 1 if @narr
     #remove x and y
       vv.slice!(xindex, 2)
-    elsif util == :dims then
+    elsif util == :dims or util == :align then
       xindex = 4
       n = 0
       n += 2 if @ld
@@ -1927,6 +1940,7 @@ class GenericConvolutionOperator1d
     end
     vv += [ @cost ] if util == :cost
     vv += [ @dimensions ] if util == :dims
+    vv += [ @alignment ] if util == :align
     p = Procedure( function_name, vv ) {
       ndat_left = Int "ndat_left"
       ndat_right = Int "ndat_right"
@@ -1938,10 +1952,10 @@ class GenericConvolutionOperator1d
       decl i, ndat_left, ndat_right
       decl tmp_cost if util == :cost
       decl nti, nto, j if @narr
-      if @narr && @ld && util != :dims then
+      if @narr && @ld && util != :dims && util != :align then
         pr nti === @nx[@idim]
         pr nto === @ny[@idim]
-      elsif @narr && util != :dims then
+      elsif @narr && util != :dims && util != :align then
       pr If(@bc[i] == BC::SHRINK => lambda {
           pr nti === @dims[@idim]
           pr nto === @dims[@idim] - @filter.buffer_increment
@@ -1956,7 +1970,7 @@ class GenericConvolutionOperator1d
       dims = []
       dim_indexes = []
       dats = []
-      if @narr && util != :dims then
+      if @narr && util != :dims && util != :align then
         f = For(j, 0, @narr-1)
         dats[0] = (@x[nti*j+1]).address
         dats[1] = (@y[nto*j+1]).address
@@ -1995,11 +2009,16 @@ class GenericConvolutionOperator1d
 #          args.push (@idim)
           args.push (@dims[@idim])
           args.push (@dimensions[@idim].address)
+        elsif util == :align then
+          args = []
+#          args.push (@idim)
+          args.push (@dims[@idim])
+          args.push (@alignment[@idim].address)
         end
-        opn f if @narr && util != :dims
+        opn f if @narr && util != :dims && util != :align
           pr @procs[procname].call( *args )
           pr @cost === @cost + tmp_cost if util == :cost
-        close f if @narr && util != :dims
+        close f if @narr && util != :dims && util != :align
       }
 
       print_call_param_a_y = lambda { |bc, a, a_x|

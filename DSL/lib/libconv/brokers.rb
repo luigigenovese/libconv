@@ -189,6 +189,7 @@ module LibConv
             vars.push dot_in if family == "s0s0_dot"
             vars.push cost if util == "cost"
             vars.push dims if util == "dims"
+            vars.push alignment if util == "align"
             p = BOAST::Procedure(function_name, vars){
               vars.shift
               case_args={}
@@ -199,6 +200,8 @@ module LibConv
                   extra = cost
                 elsif  util == "dims"
                   proc = kernels[i].dims_procedure
+                elsif  util == "align"
+                  proc = kernels[i].align_procedure
                 else
                   proc = kernels[i].procedure
                 end

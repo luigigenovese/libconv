@@ -53,6 +53,7 @@ module LibConv
 
     attr_reader :kernel
     attr_reader :cost_procedure
+    attr_reader :align_procedure
     attr_reader :dims_procedure
     attr_reader :op
     attr_reader :filter
@@ -91,6 +92,7 @@ module LibConv
       end
       @cost_procedure = conv_operation.empty_procedure(:cost)
       @dims_procedure = conv_operation.empty_procedure(:dims)
+      @align_procedure = conv_operation.empty_procedure(:align)
     end
 
     def dims_from_in(in_dim, bc)
