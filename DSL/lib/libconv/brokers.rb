@@ -1,4 +1,105 @@
 #This generates high level brokers for libconv, as well as header files to use for compilation against libconv, and a Makefile.
+  def print_filters
+      #print filters
+      @wavelet_families.each{ |wav_fam|
+        ["MF", "LP", "D1", "D2"].each{ |fil|
+          filter =BOAST::const_get(wav_fam+"_"+fil)
+          filt = GenericConvolution::ConvolutionFilter.new(wav_fam+'_'+fil, filter, filter.length/2-1)
+          filt.decl_filters
+        }
+      }
+  end
+  
+  def print_bcs(f)
+    conds = {"LIBCONV_BC_PERIODIC" => GenericConvolution::BC::PERIODIC, 
+             "LIBCONV_BC_ZERO" => GenericConvolution::BC::GROW, 
+             "LIBCONV_BC_FREE_GROW" => GenericConvolution::BC::SHRINK, 
+             "LIBCONV_BC_FREE_SHRINK" => GenericConvolution::BC::FREE, 
+             "LIBCONV_BC_INTERVAL" => GenericConvolution::BC::NPERIODIC}
+    if(BOAST::get_lang == BOAST::C) then
+      f.puts "enum ops{"
+      conds.each_with_index{ |(name, val), i|
+        f.print "#{name}=#{val}"
+        f.print "," if i != (conds.length() -1)
+      }
+      f.puts "};"
+    else
+      id=0
+      conds.each_with_index{ |(name, val), i|
+      f.print "integer :: " if id%3 == 0
+      f.print "#{name}"
+      if id%3 != 2 and  i != (conds.length() -1)
+        f.print ", "
+      else
+        f.puts ""
+      end
+      id+=1
+      }
+      id=0
+      conds.each{ |name, val|
+        f.puts "parameter(#{name}=#{val})"
+        id+=1
+      }
+    end
+    
+  end
+
+def print_ops(f)
+    if(BOAST::get_lang == BOAST::C) then
+      f.puts "enum ops{"
+      @wavelet_families.each{ |wav_fam|
+        @operations.each{ |op|
+          f.print "#{wav_fam}_#{op}"
+          f.print "," if op != @operations.last
+        }
+      }
+      f.puts "};"
+    else
+      id=0
+      @wavelet_families.each{ |wav_fam|
+#       f.puts "module brokers"
+        @operations.each{ |op|
+          f.print "integer :: " if id%3 == 0
+          f.print "#{wav_fam}_#{op}"
+          if id%3 != 2 and  !(op == @operations.last and wav_fam == @wavelet_families.last)
+            f.print ", "
+          else
+            f.puts ""
+          end
+          id+=1
+        }
+      }
+      id=0
+      @wavelet_families.each{ |wav_fam|
+        @operations.each{ |op|
+          f.puts "parameter(#{wav_fam}_#{op}=#{id})"
+          id+=1
+        }
+      }
+    end
+end
+
+def print_headers(fold)
+  #generate both Fortran and C header files every time
+  lang = BOAST::get_lang
+  [BOAST::C, BOAST::FORTRAN].each { |l|
+    if l == BOAST::C then
+      header = "libconv.h"
+    else
+      header = "libconvf.h"
+    end 
+    File::open(fold+header,"w") { |f|
+    set_output(f)
+    BOAST::set_lang(l)
+    print_ops(f)
+    print_filters
+    print_bcs(f)
+    BOAST::set_lang(lang)
+    }
+  }
+
+end
+
 module LibConv
   prec = BOAST::Int("prec", :dir => :in)
   op = BOAST::Int("op", :dir => :in, :reference => 1)
@@ -18,79 +119,11 @@ module LibConv
     id +=1
     }
   }
-
-#generate both Fortran and C header files every time
-    foldername=""
-    if not LibConv.from_cache then
-      foldername = LibConv::foldername
-    end
-  lang = BOAST::get_lang
-  ["C", "Fortran"].each { |l|
-    if l == "C" then
-      header = "libconv.h"
-    else
-      header = "libconvf.h"
-    end 
-    File::open(foldername+header,"w") { |f|
-    set_output(f)
-
-    id=0
-
-    if l == "C" then
-      BOAST::set_lang(BOAST::C)
-      f.puts "enum ops{"
-      @wavelet_families.each{ |wav_fam|
-        @operations.each{ |op|
-          f.print "#{wav_fam}_#{op}"
-          f.print "," if op != @operations.last
-        }
-      }
-      f.puts "};"
-
-      #print filters
-      @wavelet_families.each{ |wav_fam|
-        ["MF", "LP", "D1", "D2"].each{ |fil|
-          filter =BOAST::const_get(wav_fam+"_"+fil)
-          filt = GenericConvolution::ConvolutionFilter.new(wav_fam+'_'+fil, filter, filter.length/2-1)
-          filt.decl_filters
-        }
-      }
-      BOAST::set_lang(lang)
-    else 
-      BOAST::set_lang(BOAST::FORTRAN)
-      @wavelet_families.each{ |wav_fam|
-#       f.puts "module brokers"
-        @operations.each{ |op|
-        f.print "integer :: " if id%3 == 0
-        f.print "#{wav_fam}_#{op}"
-        if id%3 != 2 and  !(op == @operations.last and wav_fam == @wavelet_families.last)
-          f.print ", "
-        else
-          f.puts ""
-        end
-        id+=1
-        }
-      }
-      id=0
-      @wavelet_families.each{ |wav_fam|
-        @operations.each{ |op|
-          f.puts "parameter(#{wav_fam}_#{op}=#{id})"
-          id+=1
-        }
-      }
-      #print filters
-      @wavelet_families.each{ |wav_fam|
-        ["MF", "LP", "D1", "D2"].each{ |fil|
-          filter =BOAST::const_get(wav_fam+"_"+fil)
-          filt = GenericConvolution::ConvolutionFilter.new(wav_fam+'_'+fil, filter, filter.length/2-1)
-          filt.decl_filters
-        }
-      }
-#       f.puts "end module brokers"
-    BOAST::set_lang(lang)
-    end
-    }
-  }
+  foldername=""
+  if not LibConv.from_cache then
+    foldername = LibConv::foldername
+  end
+  print_headers(foldername)
   
   filename = "brokers.f90"
   if BOAST::get_lang == BOAST::C then
