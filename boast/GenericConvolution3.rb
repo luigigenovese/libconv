@@ -245,7 +245,7 @@ class ConvolutionFilter < Filter
       else 
         pr options[:dot_in_tmp_scalar] === FMA(Load(options[:data_in][*i_in].set_align(out.type.total_size), out), out, options[:dot_in_tmp_scalar]) if options[:dot_in_tmp_scalar]     end
     }
-    if @bc.grow? && (options[:dot_in_tmp] || options[:a_x]) && options[:side] != :center then
+    if @bc.grow? && (options[:dot_in_tmp] || options[:dot_in_tmp_scalar] || options[:a_x]) && options[:side] != :center then
       if options[:side] == :begin then
         pr If(options[:position] >= 0, &finish_block)
       elsif options[:side] == :end then
