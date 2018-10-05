@@ -1,4 +1,5 @@
 #This generates high level brokers for libconv, as well as header files to use for compilation against libconv, and a Makefile.
+
   def print_filters
       #print filters
       @wavelet_families.each{ |wav_fam|
@@ -100,8 +101,7 @@ def print_headers(fold)
 
 end
 
-module LibConv
-  prec = BOAST::Int("prec", :dir => :in)
+def print_broker_1d(f)
   op = BOAST::Int("op", :dir => :in, :reference => 1)
   d = BOAST::Int("d", :dir => :in, :reference => 1)
   idim = BOAST::Int("idim", :dir => :in, :reference => 1)
@@ -111,55 +111,6 @@ module LibConv
   ny = BOAST::Int("ny", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
   narr = BOAST::Int("narr", :dir => :in, :reference => 1)
   kernels=[]
-
-  id=0
-  @wavelet_families.each{ |wav_fam|
-    @operations.each{ |op|
-    const_set("#{wav_fam}_#{op}", BOAST::Int("#{wav_fam}_#{op}", :constant => id) )
-    id +=1
-    }
-  }
-  foldername=""
-  if not LibConv.from_cache then
-    foldername = LibConv::foldername
-  end
-  print_headers(foldername)
-  
-  filename = "brokers.f90"
-  if BOAST::get_lang == BOAST::C then
-    filename = "brokers.c"
-  end
-  File::open(foldername+filename,"w") { |f|
-  set_output(f)
-  #interfaces, commented for now
-  if BOAST::get_lang == BOAST::C then
-    f.puts  "#include <stdint.h>"
-  end
-
-#  @families.each{ |family|
-#      @dimensions.each{ |dimension|
-#          @precisions.each{ |precision|
-#              case precision
-#              when 4
-#                  precision_name = "s_"
-#              when 8
-#                  precision_name = "d_"
-#              end
-#              broker_name = "#{family}_#{dimension}"
-#              if BOAST::get_lang == BOAST::FORTRAN then
-#                  f.puts "INTERFACE #{broker_name}" if precision == 4
-#                  f.puts "module procedure #{precision_name}#{broker_name}"
-#                  f.puts "END INTERFACE #{broker_name}" if precision == 8
-#              else
-#                f.puts "#define #{broker_name}(d, idim, n, bc, nx, ny, narr, x, ...) _Generic((x),\\" if precision == 4
-#                f.puts "float*: #{precision_name}#{broker_name} (d, idim, n, bc, nx, ny, narr, x, __VA_ARGS__),\\" if precision == 4
-#                f.puts "double*: #{precision_name}#{broker_name} (d, idim, n, bc, nx, ny, narr, x, __VA_ARGS__))" if precision == 8
-#              end
-#              }
-#          }
-#      }
-      
-#  f.puts "contains" if BOAST::get_lang == BOAST::FORTRAN
   @families.each{ |family|
     ops=[]
     @wavelet_families.each{ |wav_fam|
@@ -203,6 +154,7 @@ module LibConv
             x = BOAST::Real("x", :dir => :in, :dim => [ BOAST::Dim()] )
             y=BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()] )
             cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
+            alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)])
             dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
   	  ops.each{ |operation|
               if util then 
@@ -247,22 +199,323 @@ module LibConv
             BOAST::pr p
             kernel.procedure = p
             f.puts kernel
+            LibConv.const_set(function_name.upcase, kernel)
           }
         }
       }
       generate_kernel.call()
       generate_kernel.call("cost")
       generate_kernel.call("dims")
+      generate_kernel.call("align")
     }
   }
-}
+end
+
+#multidimensionnal versions of convolutions
+def print_brokers_md(f)
+  op = BOAST::Int("op", :dir => :in, :reference => 1)
+  d = BOAST::Int("d", :dir => :in, :reference => 1)
+  idim = BOAST::Int("idim", :dir => :in, :reference => 1)
+  n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
+  bcs = BOAST::Int("bcs", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
+  nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
+  ny = BOAST::Int("ny", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
+  narr = BOAST::Int("narr", :dir => :in, :reference => 1)
+  kernels=[]
+  @families.each{ |family|
+    next if family == "s0s0_dot"
+    @precisions.each{ |precision|
+      case precision
+        when 4
+          precision_name = "s"
+        when 8
+          precision_name = "d"
+        else
+          puts "unknown precision :"+precision
+      end
+      generate_kernel = Proc.new  { |util|
+        BOAST.push_env( default_real_size: precision ){
+            kernels=[]
+            function_name = "#{precision_name}_#{family}_md"
+            function_name += "_#{util}" if util
+            function_name += "_" if BOAST::get_lang == BOAST::C
+            a = BOAST::Real("a", :dir => :in, :reference => 1 )
+            x = BOAST::Real("x", :dir => :in, :dim => [ BOAST::Dim()] )
+            y = BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()] )
+            work = BOAST::Real("work", :dir => :inout, :dim => [ BOAST::Dim()] )
+            cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
+            temp_util = BOAST::Int("tmp", :dir => :out, :dim => [ BOAST::Dim(1)])
+            alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)])
+            dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
+            idim = BOAST::Int("idim")
+            kern1d_name = "#{precision_name}_#{family}_1D"
+            kern1d_name += "_#{util}" if util
+            kern1d=const_get(kern1d_name.upcase)
 
 
+            kernel = BOAST::CKernel::new(:kernels => kern1d)
+            vars = [op, d, n, bcs]
+            idim_index=2 #will be inserted later
+            bcs_index=vars.size
+            vars+=[nx, ny, narr] if util != "dims"
+            vars+=[x, y, work] if not util
+            x_index=vars.size-2
+            y_index=vars.size-1
+            vars.push a
+            
+            vars.push cost if util == "cost"
+            vars.push dims if util == "dims"
+            vars.push alignment if util == "align"
+            
+            p = BOAST::Procedure(function_name, vars){
+              decl temp_util if util == "align" or util == "cost"
+              vars1=vars
+              vars1-=[work]
+              vars1.insert(idim_index,idim)
+              vars1.insert(y_index+3, BOAST::Real("a_x", :constant => 0.0, :reference => 1)) if family == "s0s0"
+              vars1.insert(y_index+4, BOAST::Real("a_y", :constant => 0.0, :reference => 1))
+              util_index=vars1.size-1
+                
+                printcall = lambda{|idim,x,y|
+                  vars1[idim_index]=idim-1
+                  vars1[bcs_index]=bcs[idim]
+                  vars1[x_index]=x if not util
+                  vars1[y_index]=y if not util
+                  vars1[util_index]=temp_util if util == "align" or util == "cost"
+                  BOAST::pr kern1d.procedure.call(*vars1)
+                  if util == "align"
+                    BOAST::pr alignment===BOAST::Max(alignment, temp_util)
+                  elsif  util == "cost"
+                    BOAST::pr cost===cost+temp_util
+                  end
+                }
+                if util == "align"
+                    BOAST::pr alignment===0
+                  elsif  util == "cost"
+                    BOAST::pr cost===0
+                  end
+                BOAST::pr BOAST::If( 2*(d/2) == d => lambda {
+                  printcall.call(1,x,work)
+                  BOAST::pr BOAST::For(idim,1,((d/2)-1)){
+                    printcall.call(2*idim,work,y)
+                    printcall.call(2*idim+1,y,work)
+                  }
+                  printcall.call(d,work,y)
+                }, else: lambda{
+                  printcall.call(1,x,y)
+                  BOAST::pr BOAST::For(idim,1,(d/2)){
+                    printcall.call(2*idim,y,work)
+                    printcall.call(2*idim+1,work,y)
+                  }
+                })
+            }
+            BOAST::pr p
+            kernel.procedure = p
+            f.puts kernel
+            LibConv.const_set(function_name.upcase, kernel)
+        }
+      }
+      generate_kernel.call()
+      generate_kernel.call("cost")
+      generate_kernel.call("dims")
+      generate_kernel.call("align")
+    }
+  }
+end
+
+#multidimensionnal versions of convolutions without work array
+def print_brokers_1ds(f)
+  op = BOAST::Int("op", :dir => :in, :reference => 1)
+  d = BOAST::Int("d", :dir => :in, :reference => 1)
+  idim = BOAST::Int("idim", :dir => :in, :reference => 1)
+  n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
+  bcs = BOAST::Int("bcs", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
+  nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
+  ny = BOAST::Int("ny", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
+  narr = BOAST::Int("narr", :dir => :in, :reference => 1)
+  kernels=[]
+  @families.each{ |family|
+    @precisions.each{ |precision|
+      case precision
+        when 4
+          precision_name = "s"
+        when 8
+          precision_name = "d"
+        else
+          puts "unknown precision :"+precision
+      end
+      generate_kernel = Proc.new  { |util|
+        BOAST.push_env( default_real_size: precision ){
+#          @dimensions.each{ |dimension|
+            kernels=[]
+            function_name = "#{precision_name}_#{family}_1ds"
+            function_name += "_#{util}" if util
+            function_name += "_" if BOAST::get_lang == BOAST::C
+            as = BOAST::Real("as", :dir => :in, :dim => [ BOAST::Dim()]  )
+            a_x = BOAST::Real("a_x", :dir => :in, :reference => 1 )
+            a_y = BOAST::Real("a_y", :dir => :in, :reference => 1 )
+            dot_ins = Real("dot_ins",:dir => :inout, :dim => [ BOAST::Dim(0, d - 1)])
+            x = BOAST::Real("x", :dir => :in, :dim => [ BOAST::Dim()] )
+            y = BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()] )
+            cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
+            temp_util = BOAST::Int("tmp", :dir => :out, :dim => [ BOAST::Dim(1)])
+            alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)])
+            dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
+            idim = BOAST::Int("idim")
+            kern1d_name = "#{precision_name}_#{family}_1D"
+            kern1d_name += "_#{util}" if util
+            kern1d=const_get(kern1d_name.upcase)
+
+
+            kernel = BOAST::CKernel::new(:kernels => kern1d)
+            vars = [op, d, n, bcs]
+            idim_index=2 #will be inserted later
+            bcs_index=vars.size
+            vars+=[nx, ny, narr] if util != "dims"
+            vars+=[x, y] if not util
+            x_index=vars.size-2
+            y_index=vars.size-1
+            vars.push as
+            as_index=vars.size
+            vars.push a_x if family == "s0s0" or family == "s0s0_dot"
+            vars.push a_y
+            vars.push dot_ins if family == "s0s0_dot"
+            dot_ins_index=vars.size if family == "s0s0_dot"
+            vars.push cost if util == "cost"
+            vars.push dims if util == "dims"
+            vars.push alignment if util == "align"
+            
+            p = BOAST::Procedure(function_name, vars){
+              decl temp_util if util == "align" or util == "cost"
+              vars1=vars
+              vars1.insert(idim_index,idim)
+              util_index=vars1.size-1
+                
+                printcall = lambda{|idim,x,y|
+                  vars1[idim_index]=idim-1
+                  vars1[bcs_index]=bcs[idim]
+                  vars1[as_index]=as[idim]
+                  vars1[dot_ins_index]=dot_ins[idim] if family == "s0s0_dot"
+                  vars1[x_index]=x if not util
+                  vars1[y_index]=y if not util
+                  vars1[util_index]=temp_util if util == "align" or util == "cost"
+                  BOAST::pr kern1d.procedure.call(*vars1)
+                  if util == "align"
+                    BOAST::pr alignment===BOAST::Max(alignment, temp_util)
+                  elsif  util == "cost"
+                    BOAST::pr cost===cost+temp_util
+                  end
+                }
+                if util == "align"
+                    BOAST::pr alignment===0
+                  elsif  util == "cost"
+                    BOAST::pr cost===0
+                  end
+                
+                  BOAST::pr BOAST::For(idim,1,((d/2)-1)){
+                    printcall.call(idim,x,y)
+                  }
+            }
+            BOAST::pr p
+            kernel.procedure = p
+            f.puts kernel
+            LibConv.const_set(function_name.upcase, kernel)
+#          }
+        }
+      }
+      generate_kernel.call()
+      generate_kernel.call("cost")
+      generate_kernel.call("dims")
+      generate_kernel.call("align")
+    }
+  }
+end
+
+#brokers to handle precisions
+def print_entrypoints(f)
+  prec = BOAST::Int("prec", :dir => :in)
+  op = BOAST::Int("op", :dir => :in, :reference => 1)
+  d = BOAST::Int("d", :dir => :in, :reference => 1)
+  idim = BOAST::Int("idim", :dir => :in, :reference => 1)
+  libconv_generic_kind = BOAST::Int("libconv_generic_kind", :constant => 8, :reference => 1)
+  n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
+  bc = BOAST::Int("bc", :dir => :in, :reference => 1)
+  nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
+  ny = BOAST::Int("ny", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
+  narr = BOAST::Int("narr", :dir => :in, :reference => 1)
+  kernels=[]
+  @families.each{ |family|
+    generate_kernel = Proc.new  { |util|
+      ["1d", "md", "1ds"].each{ |dimension|
+        next if family == "s0s0_dot" and dimension == "md"
+        kernels=[]
+        function_name = "#{family}_#{dimension}"
+        function_name += "_#{util}" if util
+        function_name += "_" if BOAST::get_lang == BOAST::C
+
+        prec= BOAST::Int("prec", :dir => :in, :reference => 1)
+        a = BOAST::Real("a", :dir => :in, :reference => 1 )
+        a_x = BOAST::Real("a_x", :dir => :in, :reference => 1 )
+        a_y = BOAST::Real("a_y", :dir => :in, :reference => 1 )
+        dot_in = Real("dot_in",:dir => :inout, :dim => [ BOAST::Dim(1)])
+        x = BOAST::Real("x", :dir => :in, :size=>libconv_generic_kind.name, :dim => [ BOAST::Dim()] )
+        y=BOAST::Real("y", :dir => :inout, :size=>libconv_generic_kind.name, :dim => [ BOAST::Dim()] )
+        alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)])
+        cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
+        dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
+        @precisions.each{ |precision|
+          case precision
+            when 4
+              precision_name = "s"
+            when 8
+              precision_name = "d"
+            else
+              puts "unknown precision :"+precision
+          end
+          subname = "#{precision_name}_#{family}_#{dimension}"
+          subname += "_#{util}" if util
+          kernels.push const_get(subname.upcase)
+        }
+        kernel = BOAST::CKernel::new(:kernels => kernels)
+        vars = [op, prec, d, idim, n, bc]
+        vars+=[nx, ny, narr] if util != "dims"
+#        vars.push libconv_generic_kind
+        vars+=[x, y] if not util
+        vars.push a
+        vars.push a_x if family == "s0s0" or family == "s0s0_dot"
+        vars.push a_y
+        vars.push dot_in if family == "s0s0_dot"
+        vars.push cost if util == "cost"
+        vars.push dims if util == "dims"
+        vars.push alignment if util == "align"
+        p = BOAST::Procedure(function_name, vars){
+          decl libconv_generic_kind
+          vars.delete_at(1)
+          case_args={}
+          @precisions.each_with_index{|precision, i|
+            extra=nil
+            proc = kernels[i].procedure
+            case_args[precision] = lambda {
+              BOAST::pr proc.call(*vars)
+            }
+          }
+          BOAST::pr BOAST::Case( prec, case_args)
+        }
+        BOAST::pr p
+        kernel.procedure = p
+        f.puts kernel
+      }
+    }
+    generate_kernel.call()
+    generate_kernel.call("cost")
+    generate_kernel.call("dims")
+    generate_kernel.call("align")
+  }
+end
 
 
 # write Makefile.am to foldername
-
-if not LibConv.from_cache then
+def print_makefile(extra_files)
     compiler_options = BOAST::get_compiler_options
 
     makelines="""
@@ -278,7 +531,7 @@ if not LibConv.from_cache then
 
     LibConv::kernels.each{|f| makelines+=f.to_str+"\\\n"}
 
-    makelines+=" #{filename}\n"
+    makelines+=extra_files.join("\\\n")
 
 #    makelines+="libconv_a_OBJECTS = $(libconv_a_SOURCES:.f90=.o)\n"
 
@@ -286,11 +539,88 @@ if not LibConv.from_cache then
 #	    gfortran $(AM_FCFLAGS) -c $< \n
 #    libconv.a: $(libconv_a_OBJECTS)
 #	    gfortran $(AM_FCFLAGS) -c -o $@ $^"
-    File::open("#{LibConv::foldername}Makefile.am","w") {|f|
+foldername=""
+  if not LibConv.from_cache then
+    foldername = LibConv::foldername
+  end
+    File::open("#{foldername}Makefile.am","w") {|f|
       f.puts makelines
     }
 end
 
-#    return kernel
+def set_ids()
+  id=0
+  @wavelet_families.each{ |wav_fam|
+    @operations.each{ |op|
+    const_set("#{wav_fam}_#{op}", BOAST::Int("#{wav_fam}_#{op}", :constant => id) )
+    id +=1
+    }
+  }
+end
 
-end 
+
+module LibConv
+
+  set_ids()
+  foldername=""
+  if not LibConv.from_cache then
+    foldername = LibConv::foldername
+  end
+  print_headers(foldername)
+  suffix=".f90"
+  if BOAST::get_lang == BOAST::C then
+    suffix=".c"
+  end
+
+  brokers_filename = "brokers#{suffix}"
+  File::open(foldername+brokers_filename,"w") { |f|
+    set_output(f)
+    if BOAST::get_lang == BOAST::C then
+      f.puts  "#include <stdint.h>"
+    end
+    print_broker_1d(f)
+    print_brokers_md(f)
+    print_brokers_1ds(f)
+   }
+
+  entrypoints_filename = "libconv#{suffix}"
+  File::open(foldername+entrypoints_filename,"w") { |f|
+    set_output(f)
+    if BOAST::get_lang == BOAST::C then
+      f.puts  "#include <stdint.h>"
+    end
+    print_entrypoints(f)
+  }
+
+  print_makefile([brokers_filename, entrypoints_filename])
+
+
+
+#    return kernel
+end
+
+
+#  @families.each{ |family|
+#      @dimensions.each{ |dimension|
+#          @precisions.each{ |precision|
+#              case precision
+#              when 4
+#                  precision_name = "s_"
+#              when 8
+#                  precision_name = "d_"
+#              end
+#              broker_name = "#{family}_#{dimension}"
+#              if BOAST::get_lang == BOAST::FORTRAN then
+#                  f.puts "INTERFACE #{broker_name}" if precision == 4
+#                  f.puts "module procedure #{precision_name}#{broker_name}"
+#                  f.puts "END INTERFACE #{broker_name}" if precision == 8
+#              else
+#                f.puts "#define #{broker_name}(d, idim, n, bc, nx, ny, narr, x, ...) _Generic((x),\\" if precision == 4
+#                f.puts "float*: #{precision_name}#{broker_name} (d, idim, n, bc, nx, ny, narr, x, __VA_ARGS__),\\" if precision == 4
+#                f.puts "double*: #{precision_name}#{broker_name} (d, idim, n, bc, nx, ny, narr, x, __VA_ARGS__))" if precision == 8
+#              end
+#              }
+#          }
+#      }
+      
+#  f.puts "contains" if BOAST::get_lang == BOAST::FORTRAN
