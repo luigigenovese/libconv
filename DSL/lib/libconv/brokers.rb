@@ -244,7 +244,7 @@ def print_brokers_md(f)
             y = BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()] )
             work = BOAST::Real("work", :dir => :inout, :dim => [ BOAST::Dim()] )
             cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
-            temp_util = BOAST::Int("tmp", :dir => :out, :dim => [ BOAST::Dim(1)])
+            temp_util = BOAST::Int("tmp", :dim => [ BOAST::Dim(1)])
             alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)])
             dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
             idim = BOAST::Int("idim")
@@ -272,8 +272,8 @@ def print_brokers_md(f)
               vars1=vars
               vars1-=[work]
               vars1.insert(idim_index,idim)
-              vars1.insert(y_index+3, BOAST::Real("a_x", :constant => 0.0, :reference => 1)) if family == "s0s0"
-              vars1.insert(y_index+4, BOAST::Real("a_y", :constant => 0.0, :reference => 1))
+              vars1.insert(y_index+2, BOAST::Real("a_x", :constant => 0.0, :reference => 1)) if family == "s0s0"
+              vars1.insert(y_index+3, BOAST::Real("a_y", :constant => 0.0, :reference => 1))
               util_index=vars1.size-1
                 
                 printcall = lambda{|idim,x,y|
@@ -291,8 +291,10 @@ def print_brokers_md(f)
                 }
                 if util == "align"
                     BOAST::pr alignment===0
+                    BOAST::pr temp_util===0
                   elsif  util == "cost"
                     BOAST::pr cost===0
+                    BOAST::pr temp_util===0
                   end
                 BOAST::pr BOAST::If( 2*(d/2) == d => lambda {
                   printcall.call(1,x,work)
@@ -358,7 +360,7 @@ def print_brokers_1ds(f)
             x = BOAST::Real("x", :dir => :in, :dim => [ BOAST::Dim()] )
             y = BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()] )
             cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
-            temp_util = BOAST::Int("tmp", :dir => :out, :dim => [ BOAST::Dim(1)])
+            temp_util = BOAST::Int("tmp", :dim => [ BOAST::Dim(1)])
             alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)])
             dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
             idim = BOAST::Int("idim")
@@ -408,8 +410,10 @@ def print_brokers_1ds(f)
                 }
                 if util == "align"
                     BOAST::pr alignment===0
+                    BOAST::pr temp_util===0
                   elsif  util == "cost"
                     BOAST::pr cost===0
+                    BOAST::pr temp_util===0
                   end
                 
                   BOAST::pr BOAST::For(idim,1,((d/2)-1)){
@@ -437,7 +441,6 @@ def print_entrypoints(f)
   op = BOAST::Int("op", :dir => :in, :reference => 1)
   d = BOAST::Int("d", :dir => :in, :reference => 1)
   idim = BOAST::Int("idim", :dir => :in, :reference => 1)
-  libconv_generic_kind = BOAST::Int("libconv_generic_kind", :constant => 8, :reference => 1)
   n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
   bc = BOAST::Int("bc", :dir => :in, :reference => 1)
   nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
@@ -458,6 +461,7 @@ def print_entrypoints(f)
         a_x = BOAST::Real("a_x", :dir => :in, :reference => 1 )
         a_y = BOAST::Real("a_y", :dir => :in, :reference => 1 )
         dot_in = Real("dot_in",:dir => :inout, :dim => [ BOAST::Dim(1)])
+        libconv_generic_kind = BOAST::Int("libconv_generic_kind", :constant => 8, :reference => 1)
         x = BOAST::Real("x", :dir => :in, :size=>libconv_generic_kind.name, :dim => [ BOAST::Dim()] )
         y=BOAST::Real("y", :dir => :inout, :size=>libconv_generic_kind.name, :dim => [ BOAST::Dim()] )
         alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)])
@@ -488,8 +492,8 @@ def print_entrypoints(f)
         vars.push cost if util == "cost"
         vars.push dims if util == "dims"
         vars.push alignment if util == "align"
-        p = BOAST::Procedure(function_name, vars){
-          decl libconv_generic_kind
+        p = BOAST::Procedure(function_name, vars,:constants => [libconv_generic_kind]){
+#          decl libconv_generic_kind
           vars.delete_at(1)
           case_args={}
           @precisions.each_with_index{|precision, i|
