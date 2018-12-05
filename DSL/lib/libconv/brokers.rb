@@ -166,12 +166,12 @@ def print_broker_1d(f)
 
             kernel = BOAST::CKernel::new(:kernels => kernels)
             vars = [op, d, idim, n, bc]
-            vars+=[nx, ny, narr] if util != "dims"
+            vars+=[nx, ny, narr] if not util or util == "cost"
             vars+=[x, y] if not util
             vars.push a
             vars.push a_x if family == "s0s0" or family == "s0s0_dot"
             vars.push a_y
-            vars.push dot_in if family == "s0s0_dot"
+            vars.push dot_in if family == "s0s0_dot" and not util
             vars.push cost if util == "cost"
             vars.push dims if util == "dims"
             vars.push alignment if util == "align"
@@ -250,6 +250,7 @@ def print_brokers_md(f)
             idim = BOAST::Int("idim")
             kern1d_name = "#{precision_name}_#{family}_1D"
             kern1d_name += "_#{util}" if util
+            kern1d_name += "_" if BOAST::get_lang == BOAST::C
             kern1d=const_get(kern1d_name.upcase)
 
 
@@ -257,31 +258,32 @@ def print_brokers_md(f)
             vars = [op, d, n, bcs]
             idim_index=2 #will be inserted later
             bcs_index=vars.size
-            vars+=[nx, ny, narr] if util != "dims"
+            vars+=[nx, ny, narr] if not util or util == "cost"
             vars+=[x, y, work] if not util
             x_index=vars.size-2
             y_index=vars.size-1
             vars.push a
-            
             vars.push cost if util == "cost"
             vars.push dims if util == "dims"
             vars.push alignment if util == "align"
-            
+            if util then
+              a_index=-2
+            else
+              a_index=-1
+            end
             p = BOAST::Procedure(function_name, vars){
               decl temp_util if util == "align" or util == "cost"
               vars1=vars
               vars1-=[work]
               vars1.insert(idim_index,idim)
-              vars1.insert(y_index+2, BOAST::Real("a_x", :constant => 0.0, :reference => 1)) if family == "s0s0"
-              vars1.insert(y_index+3, BOAST::Real("a_y", :constant => 0.0, :reference => 1))
-              util_index=vars1.size-1
-                
+              vars1.insert(a_index,BOAST::Real("a_x", :constant => 0.0, :reference => 1)) if family == "s0s0"
+              vars1.insert(a_index,BOAST::Real("a_y", :constant => 0.0, :reference => 1))                
                 printcall = lambda{|idim,x,y|
                   vars1[idim_index]=idim-1
-                  vars1[bcs_index]=bcs[idim]
+                  vars1[bcs_index]=bcs[idim-1]
                   vars1[x_index]=x if not util
                   vars1[y_index]=y if not util
-                  vars1[util_index]=temp_util if util == "align" or util == "cost"
+                  vars1[vars1.size-1]=temp_util if util == "align" or util == "cost"
                   BOAST::pr kern1d.procedure.call(*vars1)
                   if util == "align"
                     BOAST::pr alignment===BOAST::Max(alignment, temp_util)
@@ -366,6 +368,7 @@ def print_brokers_1ds(f)
             idim = BOAST::Int("idim")
             kern1d_name = "#{precision_name}_#{family}_1D"
             kern1d_name += "_#{util}" if util
+            kern1d_name += "_" if BOAST::get_lang == BOAST::C
             kern1d=const_get(kern1d_name.upcase)
 
 
@@ -373,16 +376,16 @@ def print_brokers_1ds(f)
             vars = [op, d, n, bcs]
             idim_index=2 #will be inserted later
             bcs_index=vars.size
-            vars+=[nx, ny, narr] if util != "dims"
+            vars+=[nx, ny, narr] if not util or util == "cost"
             vars+=[x, y] if not util
-            x_index=vars.size-2
-            y_index=vars.size-1
+            x_index=vars.size-1
+            y_index=vars.size
             vars.push as
             as_index=vars.size
             vars.push a_x if family == "s0s0" or family == "s0s0_dot"
             vars.push a_y
-            vars.push dot_ins if family == "s0s0_dot"
-            dot_ins_index=vars.size if family == "s0s0_dot"
+            vars.push dot_ins if family == "s0s0_dot" and not util
+            dot_ins_index=vars.size if family == "s0s0_dot" and not util
             vars.push cost if util == "cost"
             vars.push dims if util == "dims"
             vars.push alignment if util == "align"
@@ -391,16 +394,15 @@ def print_brokers_1ds(f)
               decl temp_util if util == "align" or util == "cost"
               vars1=vars
               vars1.insert(idim_index,idim)
-              util_index=vars1.size-1
                 
                 printcall = lambda{|idim,x,y|
                   vars1[idim_index]=idim-1
                   vars1[bcs_index]=bcs[idim]
                   vars1[as_index]=as[idim]
-                  vars1[dot_ins_index]=dot_ins[idim] if family == "s0s0_dot"
+                  vars1[dot_ins_index]=dot_ins[idim] if family == "s0s0_dot" and not util
                   vars1[x_index]=x if not util
                   vars1[y_index]=y if not util
-                  vars1[util_index]=temp_util if util == "align" or util == "cost"
+                  vars1[vars1.size-1]=temp_util if util == "align" or util == "cost"
                   BOAST::pr kern1d.procedure.call(*vars1)
                   if util == "align"
                     BOAST::pr alignment===BOAST::Max(alignment, temp_util)
@@ -443,6 +445,7 @@ def print_entrypoints(f)
   idim = BOAST::Int("idim", :dir => :in, :reference => 1)
   n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
   bc = BOAST::Int("bc", :dir => :in, :reference => 1)
+  bcs = BOAST::Int("bcs", :dir => :in, :reference => 1,:dim => [ BOAST::Dim(0, d - 1) ])
   nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
   ny = BOAST::Int("ny", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
   narr = BOAST::Int("narr", :dir => :in, :reference => 1)
@@ -478,17 +481,26 @@ def print_entrypoints(f)
           end
           subname = "#{precision_name}_#{family}_#{dimension}"
           subname += "_#{util}" if util
+          subname += "_" if BOAST::get_lang == BOAST::C
           kernels.push const_get(subname.upcase)
         }
         kernel = BOAST::CKernel::new(:kernels => kernels)
-        vars = [op, prec, d, idim, n, bc]
-        vars+=[nx, ny, narr] if util != "dims"
+        vars = [op, prec, d]
+        vars.push idim if dimension == "1d"
+        vars.push n
+        if dimension == "1d" then
+          vars.push bc
+        else
+          vars.push bcs
+        end 
+        vars+=[nx, ny, narr] if not util or util == "cost"
 #        vars.push libconv_generic_kind
         vars+=[x, y] if not util
+        vars.push work if not util and dimension == "md"
         vars.push a
-        vars.push a_x if family == "s0s0" or family == "s0s0_dot"
-        vars.push a_y
-        vars.push dot_in if family == "s0s0_dot"
+        vars.push a_x if dimension != "md" and (family == "s0s0" or family == "s0s0_dot")
+        vars.push a_y if dimension != "md"
+        vars.push dot_in if family == "s0s0_dot" and not util
         vars.push cost if util == "cost"
         vars.push dims if util == "dims"
         vars.push alignment if util == "align"
@@ -588,14 +600,12 @@ module LibConv
    }
 
   entrypoints_filename = "libconv#{suffix}"
-  File::open(foldername+entrypoints_filename,"w") { |f|
-    set_output(f)
-    if BOAST::get_lang == BOAST::C then
-      f.puts  "#include <stdint.h>"
-    end
-    print_entrypoints(f)
-  }
-
+  if BOAST::get_lang != BOAST::C then
+    File::open(foldername+entrypoints_filename,"w") { |f|
+      set_output(f)
+      print_entrypoints(f)
+    }
+  end
   print_makefile([brokers_filename, entrypoints_filename])
 
 

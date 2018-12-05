@@ -1912,7 +1912,9 @@ class GenericConvolutionOperator1d
       n += 1 if @narr
       #remove x, y, nx, ny, narr 
       vv.slice!(xindex, n+2)
+      #remove dot_in if here
     end
+    vv.pop if @dot_in and util
     vv += [ @cost ] if util == :cost
     vv += [ @dimensions ] if util == :dims
     vv += [ @alignment ] if util == :align
@@ -1938,6 +1940,7 @@ class GenericConvolutionOperator1d
       #remove x, y, nx, ny, narr 
       vv.slice!(xindex, n+2)
     end
+    vv.pop if @dot_in and util
     vv += [ @cost ] if util == :cost
     vv += [ @dimensions ] if util == :dims
     vv += [ @alignment ] if util == :align
