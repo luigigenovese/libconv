@@ -1,5 +1,56 @@
 #This generates high level brokers for libconv, as well as header files to use for compilation against libconv, and a Makefile.
 
+  D_DESC = "Number of dimensions"
+  OP_DESC = "Operator. see #ops"
+  TP_DESC = "Precision (4 for single, 8 for double)"
+  IDIM_DESC = "Treated dimension"
+  NARR_DESC = "Number of consecutive applications of the operator on x and y"
+  SF_DESC = "Array of one resolution level by wavelet transform"
+  SW_DESC = "Array of two resolution levels, of dimension 2**d*product(nsw)"
+  X_DESC = "Input array - size nx"
+  Y_DESC = "Input array - size ny"
+  N_DESC = ""
+  BC_DESC = "Boundary condition. See #bcs"
+  BCS_DESC = "Boundary conditions. See #bcs"
+  NX_DESC = "Input sizes."
+  NY_DESC = "Output sizes. If query, has to be allocated to d + 2, and will return dimensions for y, cost, and alignment necessary"
+  A_DESC = "Global multiplier"
+  AX_DESC = "Added multiplier on x"
+  AY_DESC = "Added multiplier on y - 1.0 means aggregation"
+  DOTIN_DESC = "Scalar product"
+  COST_DESC = "Estimated cost in flops of the operation"
+  ALIGN_DESC = "Alignment needed for arrays"
+  DIMS_DESC = "Dimensions for output array"
+  WORK_DESC = "Work array - Same dimensions as y"
+  DOTINS_DESC = "Scalar product for each dimension"
+  AS_DESC = "Global multiplier for each dimension"
+
+  def get_comment(type, util, precision)
+    case precision
+      when 4
+        precision_fullname = "single"
+      when 8
+        precision_fullname = "double"
+      else
+        puts "unknown precision :"+precision
+    end
+    case type
+      when "1d"
+        full_comment = ["normal wavelet transform in only one direction, #{precision_fullname} precision", "y := a * fil |X_i| x(x_1,...,x_i,...,x_d,j)  + a_y * y"]
+      when "1ds"
+        full_comment = ["sum of multi dimensional convolutions in the different direction, #{precision_fullname} precision","y = sum_i (a_i * fil |X_i| x(x_1,...,x_i,...,x_d,i))+ a_x * x + a_y * y"]
+      when "md"
+        full_comment = ["application of a separable multi-dimensional convolution on the input array, #{precision_fullname} precision","y := a * fil |X| x "]
+    end
+    if not util
+      comment = full_comment
+    else
+      comment = []
+      comment.push(util + " helper for " + full_comment[0])
+    end
+    return comment
+  end
+
   def print_filters
       #print filters
       @wavelet_families.each{ |wav_fam|
@@ -104,14 +155,14 @@ def print_headers(fold)
 end
 
 def print_broker_1d(f)
-  op = BOAST::Int("op", :dir => :in, :reference => 1)
-  d = BOAST::Int("d", :dir => :in, :reference => 1)
-  idim = BOAST::Int("idim", :dir => :in, :reference => 1)
-  n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
-  bc = BOAST::Int("bc", :dir => :in, :reference => 1)
-  nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
-  ny = BOAST::Int("ny", :dir => :inout,:dim => [ BOAST::Dim(0, d + 1) ])
-  narr = BOAST::Int("narr", :dir => :in, :reference => 1)
+  op = BOAST::Int("op", :dir => :in, :reference => 1, :comment => OP_DESC)
+  d = BOAST::Int("d", :dir => :in, :reference => 1, :comment => D_DESC)
+  idim = BOAST::Int("idim", :dir => :in, :reference => 1, :comment => IDIM_DESC)
+  n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => N_DESC)
+  bc = BOAST::Int("bc", :dir => :in, :reference => 1, :comment => BC_DESC)
+  nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => NX_DESC)
+  ny = BOAST::Int("ny", :dir => :inout,:dim => [ BOAST::Dim(0, d + 1) ], :comment => NY_DESC)
+  narr = BOAST::Int("narr", :dir => :in, :reference => 1, :comment => NARR_DESC)
   kernels=[]
   @families.each{ |family|
     ops=[]
@@ -146,18 +197,19 @@ def print_broker_1d(f)
         BOAST.push_env( default_real_size: precision ){
           @dimensions.each{ |dimension|
             kernels=[]
-            function_name = "#{precision_name}_#{family}_#{dimension}"
-            function_name += "_#{util}" if util
+            func_name = "#{precision_name}_#{family}_#{dimension}"
+            func_name += "_#{util}" if util
+            function_name = func_name
             function_name += "_" if BOAST::get_lang == BOAST::C
-            a = BOAST::Real("a", :dir => :in, :reference => 1 )
-            a_x = BOAST::Real("a_x", :dir => :in, :reference => 1 )
-            a_y = BOAST::Real("a_y", :dir => :in, :reference => 1 )
-            dot_in = Real("dot_in",:dir => :inout, :dim => [ BOAST::Dim(1)])
-            x = BOAST::Real("x", :dir => :in, :dim => [ BOAST::Dim()] )
-            y=BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()] )
-            cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
-            alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)])
-            dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
+            a = BOAST::Real("a", :dir => :in, :reference => 1, :comment => A_DESC)
+            a_x = BOAST::Real("a_x", :dir => :in, :reference => 1, :comment => AX_DESC)
+            a_y = BOAST::Real("a_y", :dir => :in, :reference => 1, :comment => AY_DESC)
+            dot_in = Real("dot_in",:dir => :inout, :dim => [ BOAST::Dim(1)], :comment => DOTIN_DESC)
+            x = BOAST::Real("x", :dir => :in, :dim => [ BOAST::Dim()], :comment => X_DESC)
+            y = BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim(2)], :comment => Y_DESC )
+            cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)], :comment => COST_DESC)
+            alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)], :comment => ALIGN_DESC)
+            dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)], :comment => DIMS_DESC)
             temp_util = BOAST::Int("tmp", :dim => [ BOAST::Dim(1)])
             ops.each{ |operation|
               if util then 
@@ -190,7 +242,7 @@ def print_broker_1d(f)
               return kern.procedure
             }
             vars = get_args.call(util)
-            p = BOAST::Procedure(function_name, vars){
+            p = BOAST::Procedure(function_name, vars, :comment => get_comment("1d", util, precision)){
               decl temp_util unless util
               BOAST::pr temp_util === 0 unless util
               pr_case=lambda{
@@ -260,14 +312,14 @@ end
 
 #multidimensionnal versions of convolutions
 def print_brokers_md(f)
-  op = BOAST::Int("op", :dir => :in, :reference => 1)
-  d = BOAST::Int("d", :dir => :in, :reference => 1)
-  idim = BOAST::Int("idim", :dir => :in, :reference => 1)
-  n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
-  bcs = BOAST::Int("bcs", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
-  nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
-  ny = BOAST::Int("ny", :dir => :inout,:dim => [ BOAST::Dim(0, d - 1) ])
-  narr = BOAST::Int("narr", :dir => :in, :reference => 1)
+  op = BOAST::Int("op", :dir => :in, :reference => 1, :comment => OP_DESC)
+  d = BOAST::Int("d", :dir => :in, :reference => 1, :comment => D_DESC)
+  idim = BOAST::Int("idim", :dir => :in, :reference => 1, :comment => IDIM_DESC)
+  n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => N_DESC)
+  bcs = BOAST::Int("bcs", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => BCS_DESC)
+  nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => NX_DESC)
+  ny = BOAST::Int("ny", :dir => :inout,:dim => [ BOAST::Dim(0, d - 1) ], :comment => NY_DESC)
+  narr = BOAST::Int("narr", :dir => :in, :reference => 1, :comment => NARR_DESC)
   kernels=[]
   @families.each{ |family|
     next if family == "s0s0_dot"
@@ -286,14 +338,14 @@ def print_brokers_md(f)
             function_name = "#{precision_name}_#{family}_md"
             function_name += "_#{util}" if util
             function_name += "_" if BOAST::get_lang == BOAST::C
-            a = BOAST::Real("a", :dir => :in, :reference => 1 )
-            x = BOAST::Real("x", :dir => :in, :dim => [ BOAST::Dim()] )
-            y = BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()] )
-            work = BOAST::Real("work", :dir => :inout, :dim => [ BOAST::Dim()] )
-            cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
+            a = BOAST::Real("a", :dir => :in, :reference => 1, :comment => A_DESC)
+            x = BOAST::Real("x", :dir => :in, :dim => [ BOAST::Dim()], :comment => X_DESC)
+            y = BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()], :comment => Y_DESC)
+            work = BOAST::Real("work", :dir => :inout, :dim => [ BOAST::Dim()], :comment => WORK_DESC )
+            cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)], :comment => COST_DESC)
             temp_util = BOAST::Int("tmp", :dim => [ BOAST::Dim(1)])
-            alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)])
-            dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
+            alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)], :comment => ALIGN_DESC)
+            dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)], :comment => DIMS_DESC)
             idim = BOAST::Int("idim")
             kern1d_name = "#{precision_name}_#{family}_1D"
             kern1d_name += "_#{util}" if util
@@ -318,7 +370,7 @@ def print_brokers_md(f)
             else
               a_index=-1
             end
-            p = BOAST::Procedure(function_name, vars){
+            p = BOAST::Procedure(function_name, vars, :comment => get_comment("md", util, precision)){
               decl temp_util if util == "align" or util == "cost"
               vars1=vars
               vars1-=[work]
@@ -377,14 +429,14 @@ end
 
 #multidimensionnal versions of convolutions without work array
 def print_brokers_1ds(f)
-  op = BOAST::Int("op", :dir => :in, :reference => 1)
-  d = BOAST::Int("d", :dir => :in, :reference => 1)
-  idim = BOAST::Int("idim", :dir => :in, :reference => 1)
-  n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
-  bcs = BOAST::Int("bcs", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
-  nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
-  ny = BOAST::Int("ny", :dir => :inout,:dim => [ BOAST::Dim(0, d - 1) ])
-  narr = BOAST::Int("narr", :dir => :in, :reference => 1)
+  op = BOAST::Int("op", :dir => :in, :reference => 1, :comment => OP_DESC)
+  d = BOAST::Int("d", :dir => :in, :reference => 1, :comment => D_DESC)
+  idim = BOAST::Int("idim", :dir => :in, :reference => 1, :comment => "This is another variable", :comment => IDIM_DESC)
+  n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => N_DESC)
+  bcs = BOAST::Int("bcs", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => BCS_DESC)
+  nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => NX_DESC)
+  ny = BOAST::Int("ny", :dir => :inout,:dim => [ BOAST::Dim(0, d - 1) ], :comment => NY_DESC)
+  narr = BOAST::Int("narr", :dir => :in, :reference => 1, :comment => NARR_DESC)
   kernels=[]
   @families.each{ |family|
     @precisions.each{ |precision|
@@ -403,16 +455,16 @@ def print_brokers_1ds(f)
             function_name = "#{precision_name}_#{family}_1ds"
             function_name += "_#{util}" if util
             function_name += "_" if BOAST::get_lang == BOAST::C
-            as = BOAST::Real("as", :dir => :in, :dim => [ BOAST::Dim()]  )
-            a_x = BOAST::Real("a_x", :dir => :in, :reference => 1 )
-            a_y = BOAST::Real("a_y", :dir => :in, :reference => 1 )
-            dot_ins = Real("dot_ins",:dir => :inout, :dim => [ BOAST::Dim(0, d - 1)])
-            x = BOAST::Real("x", :dir => :in, :dim => [ BOAST::Dim()] )
-            y = BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()] )
-            cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
+            as = BOAST::Real("as", :dir => :in, :dim => [ BOAST::Dim()], :comment => AS_DESC )
+            a_x = BOAST::Real("a_x", :dir => :in, :reference => 1, :comment => AX_DESC )
+            a_y = BOAST::Real("a_y", :dir => :in, :reference => 1, :comment => AY_DESC )
+            dot_ins = Real("dot_ins",:dir => :inout, :dim => [ BOAST::Dim(0, d - 1)], :comment => DOTINS_DESC)
+            x = BOAST::Real("x", :dir => :in, :dim => [ BOAST::Dim()], :comment => X_DESC)
+            y = BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()], :comment => Y_DESC)
+            cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)], :comment => COST_DESC)
             temp_util = BOAST::Int("tmp", :dim => [ BOAST::Dim(1)])
-            alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)])
-            dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
+            alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)], :comment => ALIGN_DESC)
+            dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)], :comment => DIMS_DESC)
             idim = BOAST::Int("idim")
             kern1d_name = "#{precision_name}_#{family}_1D"
             kern1d_name += "_#{util}" if util
@@ -438,7 +490,7 @@ def print_brokers_1ds(f)
             vars.push dims if util == "dims"
             vars.push alignment if util == "align"
             
-            p = BOAST::Procedure(function_name, vars){
+            p = BOAST::Procedure(function_name, vars, :comment => get_comment("1d", util, precision)){
               decl temp_util if util == "align" or util == "cost"
               vars1=vars
               vars1.insert(idim_index,idim)
@@ -487,16 +539,16 @@ end
 
 #brokers to handle precisions
 def print_entrypoints(f)
-  prec = BOAST::Int("prec", :dir => :in)
-  op = BOAST::Int("op", :dir => :in, :reference => 1)
-  d = BOAST::Int("d", :dir => :in, :reference => 1)
-  idim = BOAST::Int("idim", :dir => :in, :reference => 1)
-  n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
-  bc = BOAST::Int("bc", :dir => :in, :reference => 1)
-  bcs = BOAST::Int("bcs", :dir => :in, :reference => 1,:dim => [ BOAST::Dim(0, d - 1) ])
-  nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
-  ny = BOAST::Int("ny", :dir => :inout,:dim => [ BOAST::Dim(0, d - 1) ])
-  narr = BOAST::Int("narr", :dir => :in, :reference => 1)
+  prec = BOAST::Int("prec", :dir => :in, :comment => TP_DESC)
+  op = BOAST::Int("op", :dir => :in, :reference => 1, :comment => OP_DESC)
+  d = BOAST::Int("d", :dir => :in, :reference => 1, :comment => D_DESC)
+  idim = BOAST::Int("idim", :dir => :in, :reference => 1, :comment => IDIM_DESC)
+  n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => N_DESC)
+  bc = BOAST::Int("bc", :dir => :in, :reference => 1, :comment => BC_DESC)
+  bcs = BOAST::Int("bcs", :dir => :in, :reference => 1,:dim => [ BOAST::Dim(0, d - 1) ], :comment => BCS_DESC)
+  nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => NX_DESC)
+  ny = BOAST::Int("ny", :dir => :inout,:dim => [ BOAST::Dim(0, d - 1) ], :comment => NY_DESC)
+  narr = BOAST::Int("narr", :dir => :in, :reference => 1, :comment => NARR_DESC)
   kernels=[]
   @families.each{ |family|
     generate_kernel = Proc.new  { |util|
@@ -508,17 +560,17 @@ def print_entrypoints(f)
         function_name += "_" if BOAST::get_lang == BOAST::C
 
         prec= BOAST::Int("prec", :dir => :in, :reference => 1)
-        a = BOAST::Real("a", :dir => :in, :reference => 1 )
-        a_x = BOAST::Real("a_x", :dir => :in, :reference => 1 )
-        a_y = BOAST::Real("a_y", :dir => :in, :reference => 1 )
-        dot_in = Real("dot_in",:dir => :inout, :dim => [ BOAST::Dim(1)])
+        a = BOAST::Real("a", :dir => :in, :reference => 1, :comment => A_DESC)
+        a_x = BOAST::Real("a_x", :dir => :in, :reference => 1, :comment => AX_DESC )
+        a_y = BOAST::Real("a_y", :dir => :in, :reference => 1, :comment => AY_DESC )
+        dot_in = Real("dot_in",:dir => :inout, :dim => [ BOAST::Dim(1)], :comment => DOTIN_DESC)
         libconv_generic_kind = BOAST::Int("libconv_generic_kind", :constant => 8, :reference => 1)
-        x = BOAST::Real("x", :dir => :in, :size=>libconv_generic_kind.name, :dim => [ BOAST::Dim()] )
-        y=BOAST::Real("y", :dir => :inout, :size=>libconv_generic_kind.name, :dim => [ BOAST::Dim()] )
-        work = BOAST::Real("work", :dir => :inout, :dim => [ BOAST::Dim()] )
-        alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)])
-        cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
-        dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
+        x = BOAST::Real("x", :dir => :in, :size=>libconv_generic_kind.name, :dim => [ BOAST::Dim()], :comment => X_DESC)
+        y=BOAST::Real("y", :dir => :inout, :size=>libconv_generic_kind.name, :dim => [ BOAST::Dim()], :comment => Y_DESC)
+        work = BOAST::Real("work", :dir => :inout, :dim => [ BOAST::Dim()], :comment => WORK_DESC)
+        alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)], :comment => ALIGN_DESC)
+        cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)], :comment => COST_DESC)
+        dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)], :comment => DIMS_DESC)
         @precisions.each{ |precision|
           case precision
             when 4
@@ -553,7 +605,7 @@ def print_entrypoints(f)
         vars.push cost if util == "cost"
         vars.push dims if util == "dims"
         vars.push alignment if util == "align"
-        p = BOAST::Procedure(function_name, vars,:constants => [libconv_generic_kind]){
+        p = BOAST::Procedure(function_name, vars,:constants => [libconv_generic_kind], :comment => get_comment(dimension, util, precision)){
 #          decl libconv_generic_kind
           vars.delete_at(1)
           case_args={}
