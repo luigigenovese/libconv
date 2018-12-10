@@ -110,7 +110,7 @@ def print_broker_1d(f)
   n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
   bc = BOAST::Int("bc", :dir => :in, :reference => 1)
   nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
-  ny = BOAST::Int("ny", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
+  ny = BOAST::Int("ny", :dir => :inout,:dim => [ BOAST::Dim(0, d + 1) ])
   narr = BOAST::Int("narr", :dir => :in, :reference => 1)
   kernels=[]
   @families.each{ |family|
@@ -158,7 +158,8 @@ def print_broker_1d(f)
             cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
             alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)])
             dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
-  	  ops.each{ |operation|
+            temp_util = BOAST::Int("tmp", :dim => [ BOAST::Dim(1)])
+            ops.each{ |operation|
               if util then 
                 kernels.push const_get("#{precision_name}".upcase+"_#{operation.name}")
               else 
@@ -167,36 +168,77 @@ def print_broker_1d(f)
             }
 
             kernel = BOAST::CKernel::new(:kernels => kernels)
-            vars = [op, d, idim, n, bc]
-            vars+=[nx, ny, narr] if not util or util == "cost"
-            vars+=[x, y] if not util
-            vars.push a
-            vars.push a_x if family == "s0s0" or family == "s0s0_dot"
-            vars.push a_y
-            vars.push dot_in if family == "s0s0_dot" and not util
-            vars.push cost if util == "cost"
-            vars.push dims if util == "dims"
-            vars.push alignment if util == "align"
+            get_args=lambda{|util|
+              vars = [op, d, idim, n, bc]
+              vars+=[nx, ny, narr] if not util or util == "cost"
+              vars+=[x, y] if not util
+              vars.push a
+              vars.push a_x if family == "s0s0" or family == "s0s0_dot"
+              vars.push a_y
+              vars.push dot_in if family == "s0s0_dot" and not util
+              vars.push cost if util == "cost"
+              vars.push dims if util == "dims"
+              vars.push alignment if util == "align"
+              return vars
+            }
+            vars = get_args.call(util)
             p = BOAST::Procedure(function_name, vars){
-              vars.shift
-              case_args={}
-              ops.each_with_index{|op, i|
-                extra=nil
-                if util == "cost" 
-                  proc = kernels[i].cost_procedure
-                  extra = cost
-                elsif  util == "dims"
-                  proc = kernels[i].dims_procedure
-                elsif  util == "align"
-                  proc = kernels[i].align_procedure
-                else
-                  proc = kernels[i].procedure
-                end
-                case_args[op] = lambda {
-                  BOAST::pr proc.call(*vars)
+              decl temp_util unless util
+              BOAST::pr temp_util === 0 unless util
+              pr_case=lambda{
+                case_args={}
+                vars.shift
+                ops.each_with_index{|op, i|
+                  extra=nil
+                  if util == "cost" 
+                    proc = kernels[i].cost_procedure
+                    extra = cost
+                  elsif  util == "dims"
+                    proc = kernels[i].dims_procedure
+                  elsif  util == "align"
+                    proc = kernels[i].align_procedure
+                  else
+                    proc = kernels[i].procedure
+                  end
+                  case_args[op] = lambda {
+                    BOAST::pr proc.call(*vars)
+                  }
                 }
+                BOAST::pr BOAST::Case( op, case_args)
               }
-              BOAST::pr BOAST::Case( op, case_args)
+
+              #TODO don't generate separate utils anymore ?
+              if not util
+                args_cost = get_args.call("cost")
+                args_dims = get_args.call("dims")
+                args_align = get_args.call("align")
+                BOAST::pr BOAST::If(op >= 0 => lambda{
+                  pr_case.call()
+                },else: lambda{
+                  args_dims[0]=-op
+                  args_dims[-1]=ny
+                  kern = const_get((function_name+"_dims").upcase)
+                  BOAST::pr kern.procedure.call(*args_dims)
+
+                  args_cost[0]=-op
+                  index = BOAST::get_lang==BOAST::FORTRAN ? 1 : 0
+                  args_cost[-1]=ny[d]
+                  BOAST::pr temp_util[index]===ny[d]
+                  kern = const_get((function_name+"_cost").upcase)
+                  BOAST::pr kern.procedure.call(*args_cost)
+                  BOAST::pr ny[d]===ny[d]+temp_util[index]
+
+                  args_align[0]=-op
+                  args_align[-1]=ny[d+1]
+                  kern = const_get((function_name+"_align").upcase)
+                  BOAST::pr temp_util[index]===ny[d+1]
+                  BOAST::pr kern.procedure.call(*args_align)
+                  BOAST::pr y[index+1]===BOAST::Max(temp_util[index], ny[d+1])
+                }
+              )
+              else
+                pr_case.call()
+              end
             }
             BOAST::pr p
             kernel.procedure = p
@@ -205,10 +247,10 @@ def print_broker_1d(f)
           }
         }
       }
-      generate_kernel.call()
       generate_kernel.call("cost")
       generate_kernel.call("dims")
       generate_kernel.call("align")
+      generate_kernel.call()
     }
   }
 end
@@ -221,7 +263,7 @@ def print_brokers_md(f)
   n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
   bcs = BOAST::Int("bcs", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
   nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
-  ny = BOAST::Int("ny", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
+  ny = BOAST::Int("ny", :dir => :inout,:dim => [ BOAST::Dim(0, d - 1) ])
   narr = BOAST::Int("narr", :dir => :in, :reference => 1)
   kernels=[]
   @families.each{ |family|
@@ -300,6 +342,7 @@ def print_brokers_md(f)
                     BOAST::pr cost===0
                     BOAST::pr temp_util===0
                   end
+                index = BOAST::get_lang==BOAST::FORTRAN ? 1 : 0
                 BOAST::pr BOAST::If( 2*(d/2) == d => lambda {
                   printcall.call(1,x,work)
                   BOAST::pr BOAST::For(idim,1,((d/2)-1)){
@@ -337,7 +380,7 @@ def print_brokers_1ds(f)
   n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
   bcs = BOAST::Int("bcs", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
   nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
-  ny = BOAST::Int("ny", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
+  ny = BOAST::Int("ny", :dir => :inout,:dim => [ BOAST::Dim(0, d - 1) ])
   narr = BOAST::Int("narr", :dir => :in, :reference => 1)
   kernels=[]
   @families.each{ |family|
@@ -449,7 +492,7 @@ def print_entrypoints(f)
   bc = BOAST::Int("bc", :dir => :in, :reference => 1)
   bcs = BOAST::Int("bcs", :dir => :in, :reference => 1,:dim => [ BOAST::Dim(0, d - 1) ])
   nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
-  ny = BOAST::Int("ny", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ])
+  ny = BOAST::Int("ny", :dir => :inout,:dim => [ BOAST::Dim(0, d - 1) ])
   narr = BOAST::Int("narr", :dir => :in, :reference => 1)
   kernels=[]
   @families.each{ |family|
@@ -469,6 +512,7 @@ def print_entrypoints(f)
         libconv_generic_kind = BOAST::Int("libconv_generic_kind", :constant => 8, :reference => 1)
         x = BOAST::Real("x", :dir => :in, :size=>libconv_generic_kind.name, :dim => [ BOAST::Dim()] )
         y=BOAST::Real("y", :dir => :inout, :size=>libconv_generic_kind.name, :dim => [ BOAST::Dim()] )
+        work = BOAST::Real("work", :dir => :inout, :dim => [ BOAST::Dim()] )
         alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)])
         cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)])
         dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)])
