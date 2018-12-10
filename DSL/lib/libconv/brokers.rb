@@ -18,7 +18,7 @@
              "LIBCONV_BC_FREE_SHRINK" => GenericConvolution::BC::FREE, 
              "LIBCONV_BC_INTERVAL" => GenericConvolution::BC::NPERIODIC}
     if(BOAST::get_lang == BOAST::C) then
-      f.puts "enum ops{"
+      f.puts "enum bcs{"
       conds.each_with_index{ |(name, val), i|
         f.print "#{name}=#{val}"
         f.print "," if i != (conds.length() -1)
