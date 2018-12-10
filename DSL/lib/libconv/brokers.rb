@@ -181,6 +181,14 @@ def print_broker_1d(f)
               vars.push alignment if util == "align"
               return vars
             }
+
+            get_proc=lambda{|util|
+              func = func_name
+              func += "_" + util if util
+              func += "_" if BOAST::get_lang == BOAST::C
+              kern = const_get(func.upcase)
+              return kern.procedure
+            }
             vars = get_args.call(util)
             p = BOAST::Procedure(function_name, vars){
               decl temp_util unless util
@@ -217,22 +225,17 @@ def print_broker_1d(f)
                 },else: lambda{
                   args_dims[0]=-op
                   args_dims[-1]=ny
-                  kern = const_get((function_name+"_dims").upcase)
-                  BOAST::pr kern.procedure.call(*args_dims)
-
+                  BOAST::pr get_proc.call("dims").call(*args_dims)
                   args_cost[0]=-op
                   index = BOAST::get_lang==BOAST::FORTRAN ? 1 : 0
                   args_cost[-1]=ny[d]
                   BOAST::pr temp_util[index]===ny[d]
-                  kern = const_get((function_name+"_cost").upcase)
-                  BOAST::pr kern.procedure.call(*args_cost)
+                  BOAST::pr get_proc.call("cost").call(*args_cost)
                   BOAST::pr ny[d]===ny[d]+temp_util[index]
-
                   args_align[0]=-op
                   args_align[-1]=ny[d+1]
-                  kern = const_get((function_name+"_align").upcase)
                   BOAST::pr temp_util[index]===ny[d+1]
-                  BOAST::pr kern.procedure.call(*args_align)
+                  BOAST::pr get_proc.call("align").call(*args_align)
                   BOAST::pr y[index+1]===BOAST::Max(temp_util[index], ny[d+1])
                 }
               )
