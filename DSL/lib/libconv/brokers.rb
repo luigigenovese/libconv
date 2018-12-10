@@ -47,11 +47,13 @@
 
 def print_ops(f)
     if(BOAST::get_lang == BOAST::C) then
+      id=1
       f.puts "enum ops{"
       @wavelet_families.each{ |wav_fam|
         @operations.each{ |op|
-          f.print "#{wav_fam}_#{op}"
+          f.print "#{wav_fam}_#{op} = #{id}"
           f.print "," if op != @operations.last
+          id+=1
         }
       }
       f.puts "};"
@@ -70,7 +72,7 @@ def print_ops(f)
           id+=1
         }
       }
-      id=0
+      id=1
       @wavelet_families.each{ |wav_fam|
         @operations.each{ |op|
           f.puts "parameter(#{wav_fam}_#{op}=#{id})"
@@ -565,7 +567,7 @@ foldername=""
 end
 
 def set_ids()
-  id=0
+  id=1
   @wavelet_families.each{ |wav_fam|
     @operations.each{ |op|
     const_set("#{wav_fam}_#{op}", BOAST::Int("#{wav_fam}_#{op}", :constant => id) )
