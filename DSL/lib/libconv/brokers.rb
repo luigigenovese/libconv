@@ -431,7 +431,7 @@ end
 def print_brokers_1ds(f)
   op = BOAST::Int("op", :dir => :in, :reference => 1, :comment => OP_DESC)
   d = BOAST::Int("d", :dir => :in, :reference => 1, :comment => D_DESC)
-  idim = BOAST::Int("idim", :dir => :in, :reference => 1, :comment => "This is another variable", :comment => IDIM_DESC)
+  idim = BOAST::Int("idim", :dir => :in, :reference => 1, :comment => IDIM_DESC)
   n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => N_DESC)
   bcs = BOAST::Int("bcs", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => BCS_DESC)
   nx = BOAST::Int("nx", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => NX_DESC)
