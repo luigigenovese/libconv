@@ -32,7 +32,7 @@
       when 8
         precision_fullname = "double"
       else
-        puts "unknown precision :"+precision
+        precision_fullname = "mixed"
     end
     case type
       when "1d"
@@ -539,7 +539,6 @@ end
 
 #brokers to handle precisions
 def print_entrypoints(f)
-  prec = BOAST::Int("prec", :dir => :in, :comment => TP_DESC)
   op = BOAST::Int("op", :dir => :in, :reference => 1, :comment => OP_DESC)
   d = BOAST::Int("d", :dir => :in, :reference => 1, :comment => D_DESC)
   idim = BOAST::Int("idim", :dir => :in, :reference => 1, :comment => IDIM_DESC)
@@ -559,7 +558,7 @@ def print_entrypoints(f)
         function_name += "_#{util}" if util
         function_name += "_" if BOAST::get_lang == BOAST::C
 
-        prec= BOAST::Int("prec", :dir => :in, :reference => 1)
+        prec = BOAST::Int("prec", :dir => :in, :reference => 1, :comment => TP_DESC)
         a = BOAST::Real("a", :dir => :in, :reference => 1, :comment => A_DESC)
         a_x = BOAST::Real("a_x", :dir => :in, :reference => 1, :comment => AX_DESC )
         a_y = BOAST::Real("a_y", :dir => :in, :reference => 1, :comment => AY_DESC )
@@ -605,7 +604,7 @@ def print_entrypoints(f)
         vars.push cost if util == "cost"
         vars.push dims if util == "dims"
         vars.push alignment if util == "align"
-        p = BOAST::Procedure(function_name, vars,:constants => [libconv_generic_kind], :comment => get_comment(dimension, util, precision)){
+        p = BOAST::Procedure(function_name, vars,:constants => [libconv_generic_kind], :comment => get_comment(dimension, util, "mixed")){
 #          decl libconv_generic_kind
           vars.delete_at(1)
           case_args={}
