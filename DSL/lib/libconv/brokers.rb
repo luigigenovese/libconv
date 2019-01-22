@@ -2,13 +2,14 @@
 
   D_DESC = "Number of dimensions"
   OP_DESC = "Operator. see #ops"
+  OP_DESC_HELPER = "Operator. see #ops. If set to negative values, query mode: ny will return the output dimensions, cost and alignment values for -op"
   TP_DESC = "Precision (4 for single, 8 for double)"
   IDIM_DESC = "Treated dimension"
   NARR_DESC = "Number of consecutive applications of the operator on x and y"
   SF_DESC = "Array of one resolution level by wavelet transform"
   SW_DESC = "Array of two resolution levels, of dimension 2**d*product(nsw)"
   X_DESC = "Input array - size nx"
-  Y_DESC = "Input array - size ny"
+  Y_DESC = "Output array - size ny"
   N_DESC = ""
   BC_DESC = "Boundary condition. See #bcs"
   BCS_DESC = "Boundary conditions. See #bcs"
@@ -36,11 +37,11 @@
     end
     case type
       when "1d"
-        full_comment = ["normal wavelet transform in only one direction, #{precision_fullname} precision", "y := a * fil |X_i| x(x_1,...,x_i,...,x_d,j)  + a_y * y"]
+        full_comment = ["normal wavelet transform in only one direction, #{precision_fullname} precision", "y := a * fil \\|X_i\\| x(x_1,...,x_i,...,x_d,j)  + a_y * y"]
       when "1ds"
-        full_comment = ["sum of multi dimensional convolutions in the different direction, #{precision_fullname} precision","y = sum_i (a_i * fil |X_i| x(x_1,...,x_i,...,x_d,i))+ a_x * x + a_y * y"]
+        full_comment = ["sum of multi dimensional convolutions in the different direction, #{precision_fullname} precision","y = sum_i (a_i * fil \\|X_i\\| x(x_1,...,x_i,...,x_d,i))+ a_x * x + a_y * y"]
       when "md"
-        full_comment = ["application of a separable multi-dimensional convolution on the input array, #{precision_fullname} precision","y := a * fil |X| x "]
+        full_comment = ["application of a separable multi-dimensional convolution on the input array, #{precision_fullname} precision","y := a * fil \\|X\\| x "]
     end
     if not util
       comment = full_comment
@@ -155,7 +156,6 @@ def print_headers(fold)
 end
 
 def print_broker_1d(f)
-  op = BOAST::Int("op", :dir => :in, :reference => 1, :comment => OP_DESC)
   d = BOAST::Int("d", :dir => :in, :reference => 1, :comment => D_DESC)
   idim = BOAST::Int("idim", :dir => :in, :reference => 1, :comment => IDIM_DESC)
   n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => N_DESC)
@@ -201,6 +201,7 @@ def print_broker_1d(f)
             func_name += "_#{util}" if util
             function_name = func_name
             function_name += "_" if BOAST::get_lang == BOAST::C
+            op = BOAST::Int("op", :dir => :in, :reference => 1, :comment => util ? OP_DESC : OP_DESC_HELPER )
             a = BOAST::Real("a", :dir => :in, :reference => 1, :comment => A_DESC)
             a_x = BOAST::Real("a_x", :dir => :in, :reference => 1, :comment => AX_DESC)
             a_y = BOAST::Real("a_y", :dir => :in, :reference => 1, :comment => AY_DESC)
@@ -288,7 +289,7 @@ def print_broker_1d(f)
                   args_align[-1]=ny[d+1]
                   BOAST::pr temp_util[index]===ny[d+1]
                   BOAST::pr get_proc.call("align").call(*args_align)
-                  BOAST::pr y[index+1]===BOAST::Max(temp_util[index], ny[d+1])
+                  BOAST::pr ny[d+1]===BOAST::Max(temp_util[index], ny[d+1])
                 }
               )
               else
@@ -312,7 +313,6 @@ end
 
 #multidimensionnal versions of convolutions
 def print_brokers_md(f)
-  op = BOAST::Int("op", :dir => :in, :reference => 1, :comment => OP_DESC)
   d = BOAST::Int("d", :dir => :in, :reference => 1, :comment => D_DESC)
   idim = BOAST::Int("idim", :dir => :in, :reference => 1, :comment => IDIM_DESC)
   n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => N_DESC)
@@ -338,6 +338,7 @@ def print_brokers_md(f)
             function_name = "#{precision_name}_#{family}_md"
             function_name += "_#{util}" if util
             function_name += "_" if BOAST::get_lang == BOAST::C
+            op = BOAST::Int("op", :dir => :in, :reference => 1, :comment => util ? OP_DESC : OP_DESC_HELPER )
             a = BOAST::Real("a", :dir => :in, :reference => 1, :comment => A_DESC)
             x = BOAST::Real("x", :dir => :in, :dim => [ BOAST::Dim()], :comment => X_DESC)
             y = BOAST::Real("y", :dir => :inout, :dim => [ BOAST::Dim()], :comment => Y_DESC)
@@ -429,7 +430,6 @@ end
 
 #multidimensionnal versions of convolutions without work array
 def print_brokers_1ds(f)
-  op = BOAST::Int("op", :dir => :in, :reference => 1, :comment => OP_DESC)
   d = BOAST::Int("d", :dir => :in, :reference => 1, :comment => D_DESC)
   idim = BOAST::Int("idim", :dir => :in, :reference => 1, :comment => IDIM_DESC)
   n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => N_DESC)
@@ -455,7 +455,8 @@ def print_brokers_1ds(f)
             function_name = "#{precision_name}_#{family}_1ds"
             function_name += "_#{util}" if util
             function_name += "_" if BOAST::get_lang == BOAST::C
-            as = BOAST::Real("as", :dir => :in, :dim => [ BOAST::Dim()], :comment => AS_DESC )
+            op = BOAST::Int("op", :dir => :in, :reference => 1, :comment => util ? OP_DESC : OP_DESC_HELPER )
+            as = BOAST::Real("as", :dir => :in, :dim => [ BOAST::Dim(0, d - 1)], :comment => AS_DESC )
             a_x = BOAST::Real("a_x", :dir => :in, :reference => 1, :comment => AX_DESC )
             a_y = BOAST::Real("a_y", :dir => :in, :reference => 1, :comment => AY_DESC )
             dot_ins = Real("dot_ins",:dir => :inout, :dim => [ BOAST::Dim(0, d - 1)], :comment => DOTINS_DESC)
@@ -496,7 +497,7 @@ def print_brokers_1ds(f)
               vars1.insert(idim_index,idim)
                 
                 printcall = lambda{|idim,x,y|
-                  vars1[idim_index]=idim-1
+                  vars1[idim_index]=idim
                   vars1[bcs_index]=bcs[idim]
                   vars1[as_index]=as[idim]
                   vars1[dot_ins_index]=dot_ins[idim] if family == "s0s0_dot" and not util
@@ -518,7 +519,7 @@ def print_brokers_1ds(f)
                     BOAST::pr temp_util===0
                   end
                 
-                  BOAST::pr BOAST::For(idim,1,((d/2)-1)){
+                  BOAST::pr BOAST::For(idim,0,d-1){
                     printcall.call(idim,x,y)
                   }
             }
@@ -539,7 +540,6 @@ end
 
 #brokers to handle precisions
 def print_entrypoints(f)
-  op = BOAST::Int("op", :dir => :in, :reference => 1, :comment => OP_DESC)
   d = BOAST::Int("d", :dir => :in, :reference => 1, :comment => D_DESC)
   idim = BOAST::Int("idim", :dir => :in, :reference => 1, :comment => IDIM_DESC)
   n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => N_DESC)
@@ -558,6 +558,7 @@ def print_entrypoints(f)
         function_name += "_#{util}" if util
         function_name += "_" if BOAST::get_lang == BOAST::C
 
+        op = BOAST::Int("op", :dir => :in, :reference => 1, :comment => util ? OP_DESC : OP_DESC_HELPER )
         prec = BOAST::Int("prec", :dir => :in, :reference => 1, :comment => TP_DESC)
         a = BOAST::Real("a", :dir => :in, :reference => 1, :comment => A_DESC)
         a_x = BOAST::Real("a_x", :dir => :in, :reference => 1, :comment => AX_DESC )
