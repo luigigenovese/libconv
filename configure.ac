@@ -15,6 +15,20 @@ AM_INIT_AUTOMAKE(-Wno-portability)
 prefix_pwd=$(pwd)
 AC_PREFIX_DEFAULT([$prefix_pwd])
 
+dnl search for tar program
+AC_PATH_PROG([TAR], [tar])
+
+dnl set the sources to be employed
+AC_ARG_WITH(sources, AS_HELP_STRING([--with-sources], [codename of the sources to be compiled (default is 'noopt_f90') Available values are "noopt_f90", "optim_avx".]),
+                           [ax_conv_sources=$withval], [ax_conv_sources="noopt_f90"])
+
+dnl set the name of the convolution source directory
+AC_SUBST([LIBCONV_SOURCEDIR],[src_${ax_conv_sources}])
+
+dnl set for the directory to untar
+UNTAR_CMD="$TAR xJvf $srcdir/${LIBCONV_SOURCEDIR}.tar.xz"
+AC_CONFIG_COMMANDS_PRE([$UNTAR_CMD])
+
 dnl If FC environment variable is not already set, it
 dnl looks for a modern Fortran compiler, prefering newest
 dnl fortran available (e. g. Fortran95). Then FC variable
@@ -30,3 +44,5 @@ src/Makefile
 ])
 
 AC_OUTPUT
+
+dnl cat ./${LIBCONV_SOURCEDIR}/Makefile.am ./src/Makefile > toto && mv toto ./src/Makefile
