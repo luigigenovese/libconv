@@ -52,6 +52,46 @@
     return comment
   end
 
+  def print_helpers(f)
+    if @bench
+      if BOAST::get_lang == BOAST::FORTRAN
+        simulate = BOAST::Int("simulate")
+        helpers = CKernel::new(lang: BOAST::FORTRAN){
+                    get_output.puts <<EOF
+subroutine stoif(val, simulate)
+character(*), intent(in) :: val
+character(255) :: s
+integer, intent(out) :: simulate
+integer :: length
+call get_environment_variable(val, s, length=length)
+if(length > 0) then
+  read (unit=s,fmt=*) simulate
+else
+  simulate=0
+end if
+end subroutine
+
+subroutine print_data(line)
+implicit none
+character(*), intent(in) :: line
+  open(61,file='data.txt',action='write',position='append')
+  write(61,*) line
+  close(61)
+end subroutine
+
+subroutine mytime(itime)
+  ! TODO : replace by something else later. nanosec = Futile 
+  integer(kind=8)::itime
+  call nanosec(itime)
+end subroutine mytime
+EOF
+}
+       f.puts helpers
+       end
+    end
+  end
+
+
   def print_filters
       #print filters
       @wavelet_families.each{ |wav_fam|
@@ -155,6 +195,7 @@ def print_headers(fold)
 
 end
 
+
 def print_broker_1d(f)
   d = BOAST::Int("d", :dir => :in, :reference => 1, :comment => D_DESC)
   idim = BOAST::Int("idim", :dir => :in, :reference => 1, :comment => IDIM_DESC)
@@ -211,7 +252,11 @@ def print_broker_1d(f)
             cost = BOAST::Int("cost", :dir => :out, :dim => [ BOAST::Dim(1)], :comment => COST_DESC)
             alignment = BOAST::Int("alignment", :dir => :out, :dim => [ BOAST::Dim(1)], :comment => ALIGN_DESC)
             dims = BOAST::Int("dims", :dir => :out, :dim => [ BOAST::Dim(0, d - 1)], :comment => DIMS_DESC)
+            simulate = BOAST::Int("simulate")
             temp_util = BOAST::Int("tmp", :dim => [ BOAST::Dim(1)])
+            t0 = BOAST::Int("t0", :size => 8)
+            t1 = BOAST::Int("t1", :size => 8)
+            testchar = BOAST::Int("testchar")
             ops.each{ |operation|
               if util then 
                 kernels.push const_get("#{precision_name}".upcase+"_#{operation.name}")
@@ -245,6 +290,14 @@ def print_broker_1d(f)
             vars = get_args.call(util)
             p = BOAST::Procedure(function_name, vars, :comment => get_comment("1d", util, precision)){
               decl temp_util unless util
+              if @bench and not util
+                if BOAST::get_lang==BOAST::FORTRAN
+                  get_output.puts "character(255):: testchar"
+                end
+                decl simulate
+                decl t0
+                decl t1
+              end
               BOAST::pr temp_util === 0 unless util
               pr_case=lambda{
                 case_args={}
@@ -270,22 +323,76 @@ def print_broker_1d(f)
 
               #TODO don't generate separate utils anymore ?
               if not util
-                args_cost = get_args.call("cost")
-                args_dims = get_args.call("dims")
-                args_align = get_args.call("align")
+              args_cost = nil
+              args_dims = nil
+              args_align = nil
+                push_env(:decl_module => true) { #try to avoid dereferences in C
+                  args_cost = get_args.call("cost")
+                  args_dims = get_args.call("dims")
+                  args_align = get_args.call("align")
+                }
+                if @bench
+                  if BOAST::get_lang == BOAST::C
+                    getenv = Procedure( :getenv, [name])
+                    stoi = Procedure( :stoi, [name])
+                    BOAST::pr simulate === stoi.call(getenv.call("\"SIMULATING\""))
+                  else
+                    stoi = Procedure( :stoif , [name, simulate])
+                    BOAST::pr stoi.call("\"SIMULATING\"", simulate)
+                  end
+                end
                 BOAST::pr BOAST::If(op >= 0 => lambda{
-                  pr_case.call()
+                  if(not @bench)
+                    pr_case.call()
+                  else
+                  #in case we want to link with simgrid, check environment variable, call cost_procedure, and replace call by a call to execute_flops(cost).
+                    BOAST::pr BOAST::If(simulate == 0 => lambda{
+                      pr_case.call()
+                    }, simulate > 0 =>  lambda{
+                      #emulating, get cost and execute in simgrid.
+                      index = BOAST::get_lang==BOAST::FORTRAN ? 1 : 0
+                      args_cost[-1]=temp_util[index]
+                      BOAST::pr get_proc.call("cost").call(*args_cost)
+                      if @link_with_simgrid
+                        simulate_call = Procedure( :smpi_execute_flops_benched, [temp_util[index]])
+                        #smpi_execute_flops_benched expects a double
+                        BOAST::pr y[index] === temp_util[index]
+                        BOAST::pr simulate_call.call(y[index])
+                      end
+                    }, simulate < 0 =>  lambda{
+                      #benchmarking.
+                      if BOAST::get_lang == BOAST::C
+                        mytime = Procedure( :nanosec , [t0])
+                      else
+                        mytime = Procedure( :mytime , [t0])
+                      end
+                      index = BOAST::get_lang==BOAST::FORTRAN ? 1 : 0
+                      args_cost[-1]=temp_util[index]
+                      BOAST::pr get_proc.call("cost").call(*args_cost)
+                      BOAST::pr mytime.call(t0)
+                      pr_case.call()
+                      BOAST::pr mytime.call(t1)
+                      args_print=*args_cost-[nx,ny]
+                      args_print=args_print.each{ |arg| arg.to_s }
+                      args_print[3]= "n(0),n(1),n(2)"
+
+                      get_output.puts "write(testchar, *)"+ "\"#{function_name}\","+args_print.join(",")+",t1-t0"
+                      print_data = Procedure( :print_data, [testchar])
+                      BOAST::pr print_data.call(testchar)
+                    }
+                    )
+                  end
                 },else: lambda{
-                  args_dims[0]=-op
-                  args_dims[-1]=ny
+                  args_dims[0]="-#{op.name}"
+                  args_dims[-1]=ny.name
                   BOAST::pr get_proc.call("dims").call(*args_dims)
-                  args_cost[0]=-op
+                  args_cost[0]="-#{op.name}"
                   index = BOAST::get_lang==BOAST::FORTRAN ? 1 : 0
                   args_cost[-1]=ny[d]
                   BOAST::pr temp_util[index]===ny[d]
                   BOAST::pr get_proc.call("cost").call(*args_cost)
                   BOAST::pr ny[d]===ny[d]+temp_util[index]
-                  args_align[0]=-op
+                  args_align[0]="-#{op.name}"
                   args_align[-1]=ny[d+1]
                   BOAST::pr temp_util[index]===ny[d+1]
                   BOAST::pr get_proc.call("align").call(*args_align)
@@ -694,7 +801,9 @@ module LibConv
     set_output(f)
     if BOAST::get_lang == BOAST::C then
       f.puts  "#include <stdint.h>"
+      f.puts  "#include <smpi.h>" if @bench
     end
+    print_helpers(f)
     print_broker_1d(f)
     print_brokers_md(f)
     print_brokers_1ds(f)

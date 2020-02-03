@@ -14,7 +14,8 @@ module LibConv
   @operations=["MF","IMF","DWT","RTOS1","IDWT","S1TOR","D1","D2","NABLA"]
   @families=["s0s0", "s0s0_dot", "s0s1", "s1s0"]
   @dimensions=["1d"]
-
+  @bench=false
+  @link_with_simgrid=false
   #read input file if present
   if (ARGV.length == 1) then
     input = ARGV[0]
@@ -33,6 +34,10 @@ module LibConv
             @families = value2
           elsif key2 == :dimensions
             @dimensions = value2
+          elsif key2 == :simgrid
+            @link_with_simgrid = value2
+          elsif key2 == :bench
+            @bench = value2
           else
             raise "unknown key in libconv config file : "+key2
           end
