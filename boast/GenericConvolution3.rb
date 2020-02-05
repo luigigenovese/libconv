@@ -1373,7 +1373,7 @@ class ConvolutionOperator1d
     @vars.push @dot_in = Real("dot_in",:dir => :out) if options[:dot_in]
     @dot_in_tmp = nil
     @dot_in_tmp_scalar = nil
-    @cost = Int("cost", :dir => :out)
+    @cost = Int("cost", :size=>8, :dir => :out)
     @dim = Int("dim", :dir => :out)
     @vec = Int("vec", :dir => :out)
     @idim = Int("idim", :dir => :out)
@@ -1782,7 +1782,7 @@ class GenericConvolutionOperator1d
     @vars.push @a_x = Real("a_x",:dir => :in) if options[:a_x]
     @vars.push @a_y = Real("a_y",:dir => :in) if options[:a_y] && options[:a_y] != 1.0
     @vars.push @dot_in = Real("dot_in",:dir => :out) if options[:dot_in]
-    @cost = Int( "cost", :dir => :out )
+    @cost = Int( "cost", :size=>8, :dir => :out )
     @dimensions = Int( "dims", :dim => [Dim(0, @ndim - 1)], :dir => :out )
     @alignment = Int( "alignment", :dim => [Dim(0, @ndim - 1)], :dir => :out )
 
