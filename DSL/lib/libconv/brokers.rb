@@ -301,7 +301,8 @@ def print_broker_1d(f)
               BOAST::pr temp_util === 0 unless util
               pr_case=lambda{
                 case_args={}
-                vars.shift
+                copyvars=*vars
+                copyvars.shift
                 ops.each_with_index{|op, i|
                   extra=nil
                   if util == "cost" 
@@ -315,7 +316,7 @@ def print_broker_1d(f)
                     proc = kernels[i].procedure
                   end
                   case_args[op] = lambda {
-                    BOAST::pr proc.call(*vars)
+                    BOAST::pr proc.call(*copyvars)
                   }
                 }
                 BOAST::pr BOAST::Case( op, case_args)
