@@ -357,7 +357,7 @@ def print_broker_1d(f)
                       if @link_with_simgrid
                         simulate_call = Procedure( :smpi_execute_flops_benched, [temp_util[index]])
                         #smpi_execute_flops_benched expects a double
-                        BOAST::pr y[index] === temp_util[index]
+                        BOAST::pr y[index] === temp_util[index]*1000000
                         BOAST::pr simulate_call.call(y[index])
                       end
                     }, simulate < 0 =>  lambda{
