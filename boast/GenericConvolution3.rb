@@ -1571,7 +1571,9 @@ class ConvolutionOperator1d
 
     if util == :cost then
       return Procedure(function_name, @shape.dims + [@cost] ){
-        pr @cost === @shape.processed_dim * @filter.cost * @shape.non_processed_dims.inject(&:*) / 1000000
+        pr @cost === @shape.processed_dim
+        pr @cost === @cost * @filter.cost
+        pr @cost === @cost * @shape.non_processed_dims.inject(&:*) / 1000000
       }
     end
     if util == :dims then
