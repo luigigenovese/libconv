@@ -6,6 +6,9 @@
   :wavelet_families : 
    - SYM8
    - SYM4
+   - SYM9
+   - SYM3
+   - SYM2
   :operations: 
    - MF
    - IMF

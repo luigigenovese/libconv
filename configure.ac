@@ -17,6 +17,7 @@ AC_PREFIX_DEFAULT([$prefix_pwd])
 
 dnl search for tar program
 AC_PATH_PROG([TAR], [tar])
+AC_PROG_SED()
 
 dnl set the sources to be employed
 AC_ARG_WITH(sources, AS_HELP_STRING([--with-sources], [codename of the sources to be compiled (default is 'noopt_f90') Available values are "noopt_f90", "optim_avx".]),
@@ -28,6 +29,12 @@ AC_SUBST([LIBCONV_SOURCEDIR],[src_${ax_conv_sources}])
 dnl set for the directory to untar
 UNTAR_CMD="$TAR xJvf $srcdir/${LIBCONV_SOURCEDIR}.tar.xz"
 AC_CONFIG_COMMANDS_PRE([$UNTAR_CMD])
+SED_CMD="$SED -i s/\&\&//g ${LIBCONV_SOURCEDIR}/*"
+AC_CONFIG_COMMANDS_PRE([$SED_CMD])
+SED_CMD2="$SED -i s/AM_FCFLAGS/LIBCONV_FCFLAGS/g ${LIBCONV_SOURCEDIR}/Makefile.am"
+AC_CONFIG_COMMANDS_PRE([$SED_CMD2])
+SED_CMD3="$SED -i s/AM_CFLAGS/LIBCONV_CFLAGS/g ${LIBCONV_SOURCEDIR}/Makefile.am"
+AC_CONFIG_COMMANDS_PRE([$SED_CMD3])
 
 dnl If FC environment variable is not already set, it
 dnl looks for a modern Fortran compiler, prefering newest
@@ -41,6 +48,7 @@ dnl Give the name of file.in to transform to file
 AC_CONFIG_FILES([
 Makefile
 src/Makefile
+tests/Makefile
 ])
 
 AC_OUTPUT
