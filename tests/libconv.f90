@@ -18,7 +18,8 @@ program libconv
 
   op=SYM8_MF
 
-  call s0s0_3d_info(SYM8_IMF, bc, ndims, nout, flops)    
+  !call s0s0_3d_info(SYM8_IMF, bc, ndims, nout, flops)    
+  call op_3d_info(8, op, bc, ndims, nout, flops)
   ! call s0s0_3d_info(op, bc, ndims, nout, flops)
   ! call s0s0_3d_info(SYM8_IMF, -bc, nout, nout2, flops)    
   allocate(x   (ndims(1),ndims(2),ndims(3)))
@@ -38,7 +39,7 @@ program libconv
   call op_3d(8,SYM8_IMF,ibc,nout,1.0d0, 0.0d0, 0.0d0,y,x2,tmp2,tmp1)
   call allclose(size,x,x2,tol)
 
-  print *,'tolerance',tol
+  print *,'tolerance',tol 
   
   tmp1=0.d0
   tmp2=0.0d0

@@ -197,9 +197,11 @@ subroutine op_3d_info(cp, op, bc, n, nout, flops)
 
   subroutine gen_info(procedure_dims,procedure_cost)
   !local variables
-  integer :: i, cost
+  integer :: i
   real(kind=8) :: a, ax, ay
   integer, dimension(0:2) :: dimsin, dimsout
+  integer, dimension(1) :: cost
+
 
   !those values should not be important for the dims
   a=1.d0
@@ -220,7 +222,7 @@ subroutine op_3d_info(cp, op, bc, n, nout, flops)
           a, ax, ay, cost)
      print *, "cost for call ",i,":", cost, " flops"
    dimsin=dimsout
-   flops=flops+cost
+   flops=flops+cost(1)
  end do
  end subroutine gen_info
 
