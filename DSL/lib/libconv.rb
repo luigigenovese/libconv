@@ -1,6 +1,9 @@
 require_relative '../../boast/GenericConvolution3'
 require_relative '../../boast/WaveletFilters'
 require_relative '../../boast/PoissonFilters'
+require_relative '../../boast/Synthesis.rb'
+require_relative '../../boast/MagicFilter2.rb'
+require_relative '../../boast/AnaRotPer-2.rb'
 require_relative 'libconv/dimension'
 require_relative 'libconv/data_space'
 require_relative 'libconv/boundary_condition'
@@ -10,12 +13,16 @@ module LibConv
 #default values
   @optims = {unroll_range: [1,1], mod_arr_test: false, tt_arr_test: false, openmp: true}
   @precisions=[4,8]
-  @wavelet_families=["SYM8", "SYM4"]
-  @operations=["MF","IMF","DWT","RTOS1","IDWT","S1TOR","D1","D2","NABLA"]
-  @families=["s0s0", "s0s0_dot", "s0s1", "s1s0"]
+  @all_wavelet_families=["SYM8", "SYM4"]
+  @wavelet_families=@all_wavelet_families
+  @all_operations=["MF","IMF","DWT","RTOS1","IDWT","S1TOR","D1","D2","NABLA"]
+  @operations=@all_operations
+  @all_families=["s0s0", "s0s0_dot", "s0s1", "s1s0"]
+  @families=@all_families
   @dimensions=["1d"]
   @bench=false
   @link_with_simgrid=false
+  @refs=true
   #read input file if present
   if (ARGV.length == 1) then
     input = ARGV[0]
@@ -38,6 +45,8 @@ module LibConv
             @link_with_simgrid = value2
           elsif key2 == :bench
             @bench = value2
+          elsif key2 == :refs
+            @refs = value2
           else
             raise "unknown key in libconv config file : "+key2
           end
@@ -94,7 +103,7 @@ end
       wvals = const_get(wavelet_family+"_LP")
       mfvals = const_get(wavelet_family+"_MF")
       
-
+    if @operations != nil then
       @operations.each{ |op| 
         name = const_name(op, config)
         case op
@@ -130,10 +139,11 @@ end
           raise "Unknown operation"+op
         end
       }
+    end
     }
   }
 
-  if @operations.include? "NABLA"
+  if @operations != nil and @operations.include? "NABLA"
   then
     CONFIGURATION_POISSON = BOAST::BruteForceOptimizer::new( BOAST::OptimizationSpace::new( {precision: @precisions, wavelet_family: ["NABLA"]}))
     CONFIGURATION_POISSON.each { |config|
@@ -147,6 +157,23 @@ end
         }
       }
     }
+  end
+
+  if @refs == true
+  then
+    #print_reference_kernels()
+    filename="refs.f90"
+    Dir.mkdir("#{@foldername}") if not Dir.exist?(@foldername)
+    File::open(@foldername+filename,"w") {|f|
+      sref = BOAST::synthesis_per_ref
+      f.puts sref
+      aref = BOAST::analysis_free_ref
+      f.puts aref
+      mf_ref = magicfilter_ref
+      f.puts mf_ref
+
+    }
+    @kernels.push(filename)
   end
 
 end

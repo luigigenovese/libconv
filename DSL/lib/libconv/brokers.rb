@@ -58,6 +58,57 @@
         simulate = BOAST::Int("simulate")
         helpers = CKernel::new(lang: BOAST::FORTRAN){
                     get_output.puts <<EOF
+module csvrecord
+  type :: csv_record
+    integer :: op
+    integer ::idim
+    real :: intersect
+    real :: slope
+  end type csv_record
+end module csvrecord
+
+module csv
+  use csvrecord
+  type(csv_record), dimension(15) :: lm_factors
+  integer :: initialized = 0
+end module csv
+
+function lm_intersect(op, idim)
+  use csv
+  implicit none
+  integer :: lm_intersect
+  integer :: i
+  integer, intent(in) :: op, idim
+  lm_intersect=-1
+  do i = 1, 15
+    if(lm_factors(i)%op == op .and. lm_factors(i)%idim == idim) then
+      lm_intersect=int(lm_factors(i)%intersect)
+      exit
+      end if
+  end do
+  if (lm_intersect==-1) then
+    print *, "error in fetching lm_slope ", op, idim
+  end if
+end function lm_intersect
+
+function lm_slope(op, idim)
+  use csv
+  implicit none
+  integer :: lm_slope
+  integer :: i
+  integer, intent(in) :: op, idim
+  lm_slope=-1
+  do i = 1, 15
+    if(lm_factors(i)%op == op .and. lm_factors(i)%idim == idim) then
+      lm_slope=int(lm_factors(i)%slope)
+      exit
+      end if
+  end do
+  if (lm_slope==-1) then
+    print *, "error in fetching lm_slope ", op, idim
+  end if
+end function lm_slope
+
 subroutine stoif(val, simulate)
 character(*), intent(in) :: val
 character(255) :: s
@@ -84,6 +135,23 @@ subroutine mytime(itime)
   integer(kind=8)::itime
   call nanosec(itime)
 end subroutine mytime
+
+subroutine load_file(filename)
+  use csv
+  implicit none
+  character(*), intent(in) :: filename
+  integer :: i
+  if(initialized==0) then
+    open(61,file=filename,action='read')
+    do i = 1, 15
+      read(61,*) lm_factors(i)
+      write(*,*) lm_factors(i)%idim
+    end do
+    initialized=1
+  end if
+  close(61)
+end subroutine load_file
+
 EOF
 }
        f.puts helpers
@@ -105,9 +173,9 @@ EOF
   
   def print_bcs(f)
     conds = {"LIBCONV_BC_PERIODIC" => GenericConvolution::BC::PERIODIC, 
-             "LIBCONV_BC_ZERO" => GenericConvolution::BC::GROW, 
-             "LIBCONV_BC_FREE_GROW" => GenericConvolution::BC::SHRINK, 
-             "LIBCONV_BC_FREE_SHRINK" => GenericConvolution::BC::FREE, 
+             "LIBCONV_BC_ZERO" => GenericConvolution::BC::FREE, 
+             "LIBCONV_BC_FREE_GROW" => GenericConvolution::BC::GROW, 
+             "LIBCONV_BC_FREE_SHRINK" => GenericConvolution::BC::SHRINK, 
              "LIBCONV_BC_INTERVAL" => GenericConvolution::BC::NPERIODIC}
     if(BOAST::get_lang == BOAST::C) then
       f.puts "enum bcs{"
@@ -141,22 +209,22 @@ def print_ops(f)
     if(BOAST::get_lang == BOAST::C) then
       id=1
       f.puts "enum ops{"
-      @wavelet_families.each{ |wav_fam|
-        @operations.each{ |op|
+      @all_wavelet_families.each{ |wav_fam|
+        @all_operations.each{ |op|
           f.print "#{wav_fam}_#{op} = #{id}"
-          f.print "," if op != @operations.last
+          f.print "," if op != @all_operations.last
           id+=1
         }
       }
       f.puts "};"
     else
       id=0
-      @wavelet_families.each{ |wav_fam|
+      @all_wavelet_families.each{ |wav_fam|
 #       f.puts "module brokers"
-        @operations.each{ |op|
+        @all_operations.each{ |op|
           f.print "integer :: " if id%3 == 0
           f.print "#{wav_fam}_#{op}"
-          if id%3 != 2 and  !(op == @operations.last and wav_fam == @wavelet_families.last)
+          if id%3 != 2 and  !(op == @all_operations.last and wav_fam == @all_wavelet_families.last)
             f.print ", "
           else
             f.puts ""
@@ -165,8 +233,8 @@ def print_ops(f)
         }
       }
       id=1
-      @wavelet_families.each{ |wav_fam|
-        @operations.each{ |op|
+      @all_wavelet_families.each{ |wav_fam|
+        @all_operations.each{ |op|
           f.puts "parameter(#{wav_fam}_#{op}=#{id})"
           id+=1
         }
@@ -187,7 +255,7 @@ def print_headers(fold)
     set_output(f)
     BOAST::set_lang(l)
     print_ops(f)
-    print_filters
+    #print_filters
     print_bcs(f)
     BOAST::set_lang(lang)
     }
@@ -256,6 +324,7 @@ def print_broker_1d(f)
             temp_util = BOAST::Int("tmp", :dim => [ BOAST::Dim(1)])
             t0 = BOAST::Int("t0", :size => 8)
             t1 = BOAST::Int("t1", :size => 8)
+            op2 = BOAST::Int("op2", :reference => 1)
             testchar = BOAST::Int("testchar")
             ops.each{ |operation|
               if util then 
@@ -355,10 +424,20 @@ def print_broker_1d(f)
                       args_cost[-1]=temp_util[index]
                       BOAST::pr get_proc.call("cost").call(*args_cost)
                       if @link_with_simgrid
-                        simulate_call = Procedure( :smpi_execute_flops_benched, [temp_util[index]])
+                      load_file = Procedure( :load_file, [testchar])
+                      BOAST::pr load_file.call("\"coeffs.csv\"")
+                        simulate_call = Procedure( :smpi_execute_benched, [temp_util[index]])
+                        intersect_call = Procedure( :lm_intersect, [op, index], :return=> t0)
+                        slope_call = Procedure( :lm_slope, [op, index], :return=> t0)
                         #smpi_execute_flops_benched expects a double
-                        BOAST::pr y[index] === temp_util[index]*1000000
-                        BOAST::pr simulate_call.call(y[index])
+                        #BOAST::pr y[index] === temp_util[index]
+                        #get_output.puts "y(1) = (lm_intersect(op, idim) + lm_slope(op, idim)*tmp(1))/1000000000"
+                        BOAST::pr y[index] === temp_util[index]*slope_call.call(op, idim)
+                        BOAST::pr y[index] === y[index]+intersect_call.call(op, idim)
+                        BOAST::pr BOAST::If(y[index] < 0 => lambda{
+                          BOAST::pr y[index]===0
+                        })
+                        BOAST::pr simulate_call.call(y[index]/1000000000)
                       end
                     }, simulate < 0 =>  lambda{
                       #benchmarking.
@@ -384,20 +463,23 @@ def print_broker_1d(f)
                     )
                   end
                 },else: lambda{
-                  args_dims[0]="-#{op.name}"
-                  args_dims[-1]=ny.name
-                  BOAST::pr get_proc.call("dims").call(*args_dims)
-                  args_cost[0]="-#{op.name}"
-                  index = BOAST::get_lang==BOAST::FORTRAN ? 1 : 0
-                  args_cost[-1]=ny[d]
-                  BOAST::pr temp_util[index]===ny[d]
-                  BOAST::pr get_proc.call("cost").call(*args_cost)
-                  BOAST::pr ny[d]===ny[d]+temp_util[index]
-                  args_align[0]="-#{op.name}"
-                  args_align[-1]=ny[d+1]
-                  BOAST::pr temp_util[index]===ny[d+1]
-                  BOAST::pr get_proc.call("align").call(*args_align)
-                  BOAST::pr ny[d+1]===BOAST::Max(temp_util[index], ny[d+1])
+                  #args_dims[-1]=ny.name
+                  #push_env(:decl_module => true) {
+                  #  BOAST::pr get_proc.call("dims").call(*args_dims)
+                  #}
+                  #index = BOAST::get_lang==BOAST::FORTRAN ? 1 : 0
+                  #args_cost[-1]=ny[d]
+                  #BOAST::pr temp_util[index]===ny[d]
+                  #push_env(:decl_module => true) {
+                  #  BOAST::pr get_proc.call("cost").call(*args_cost)
+                  #}
+                  #BOAST::pr ny[d]===ny[d]+temp_util[index]
+                  #args_align[-1]=ny[d+1]
+                  #BOAST::pr temp_util[index]===ny[d+1]
+                  #push_env(:decl_module => true) {
+                  #  BOAST::pr get_proc.call("align").call(*args_align)
+                  #}
+                  #BOAST::pr ny[d+1]===BOAST::Max(temp_util[index], ny[d+1])
                 }
               )
               else
@@ -507,6 +589,7 @@ def print_brokers_md(f)
                     BOAST::pr temp_util===0
                   end
                 index = BOAST::get_lang==BOAST::FORTRAN ? 1 : 0
+                push_env(:decl_module => true){
                 BOAST::pr BOAST::If( 2*(d/2) == d => lambda {
                   printcall.call(1,x,work)
                   BOAST::pr BOAST::For(idim,1,((d/2)-1)){
@@ -521,6 +604,7 @@ def print_brokers_md(f)
                     printcall.call(2*idim+1,work,y)
                   }
                 })
+                }
             }
             BOAST::pr p
             kernel.procedure = p
@@ -806,8 +890,8 @@ module LibConv
     end
     print_helpers(f)
     print_broker_1d(f)
-    print_brokers_md(f)
-    print_brokers_1ds(f)
+#    print_brokers_md(f)
+#    print_brokers_1ds(f)
    }
 
   entrypoints_filename = "libconv#{suffix}"
@@ -817,7 +901,7 @@ module LibConv
       print_entrypoints(f)
     }
   end
-  print_makefile([brokers_filename, entrypoints_filename])
+  print_makefile([brokers_filename])
 
 
 
