@@ -6,16 +6,16 @@
   :wavelet_families : 
    - SYM8
    - SYM4
-   - SYM9
+   #- SYM9
    - SYM3
-   - SYM2
+   #- SYM2
   :operations: 
    - MF
    - IMF
    - DWT 
-   - RTOS1
+   #- RTOS1
    - IDWT
-   - S1TOR
+   #- S1TOR
    - D1
    - D2
    - NABLA
@@ -24,14 +24,17 @@
    - s0s0_dot
    - s0s1
    - s1s0
+  :refs: false 
 :optims:
-  :unroll_range: 
-   - 2
-   - 8
-   - 2
-  :mod_arr_test: true
-  :tt_arr_test: true
+  #:unroll_range: 
+  # - 2
+  # - 8
+  # - 2
+  :mod_arr_test: false #true
+  :tt_arr_test: false #true
   :openmp: true
-  :vector_length: 
-   - 2
-   - 4
+  #:vector_length: 
+  #- 2
+  #- 4
+  :unroll_inner_range: [false] 
+

@@ -859,8 +859,8 @@ end
 
 def set_ids()
   id=1
-  @wavelet_families.each{ |wav_fam|
-    @operations.each{ |op|
+  @all_wavelet_families.each{ |wav_fam|
+    @all_operations.each{ |op|
     const_set("#{wav_fam}_#{op}", BOAST::Int("#{wav_fam}_#{op}", :constant => id) )
     id +=1
     }

@@ -13,7 +13,7 @@ module LibConv
 #default values
   @optims = {unroll_range: [1,1], mod_arr_test: false, tt_arr_test: false, openmp: true}
   @precisions=[4,8]
-  @all_wavelet_families=["SYM8", "SYM4"]
+  @all_wavelet_families=["SYM2", "SYM3", "SYM4", "SYM8", "SYM9"]
   @wavelet_families=@all_wavelet_families
   @all_operations=["MF","IMF","DWT","RTOS1","IDWT","S1TOR","D1","D2","NABLA"]
   @operations=@all_operations

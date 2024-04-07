@@ -1091,6 +1091,7 @@ class GenericOptimization
     space[:unrolled_dim_index_range] = [0,1] if unrolled_dim_index_test
     space[:unroll_inner_range] = [true]
     space[:unroll_inner_range] = [true, false] if unroll_inner_test
+    space[:unroll_inner_range] = options[:unroll_inner_range] if not options[:unroll_inner_range].nil?
     space[:vector_length_range] = [vector_length].flatten
     @space=ParamSpace::new(space)
   end
