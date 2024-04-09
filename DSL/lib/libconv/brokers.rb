@@ -256,6 +256,7 @@ def print_headers(fold)
     BOAST::set_lang(l)
     print_ops(f)
     #print_filters
+    print_broker_1d(f,true) if l == BOAST::C
     print_bcs(f)
     BOAST::set_lang(lang)
     }
@@ -263,8 +264,7 @@ def print_headers(fold)
 
 end
 
-
-def print_broker_1d(f)
+def print_broker_1d(f, print_headers=nil)
   d = BOAST::Int("d", :dir => :in, :reference => 1, :comment => D_DESC)
   idim = BOAST::Int("idim", :dir => :in, :reference => 1, :comment => IDIM_DESC)
   n = BOAST::Int("n", :dir => :in,:dim => [ BOAST::Dim(0, d - 1) ], :comment => N_DESC)
@@ -357,6 +357,22 @@ def print_broker_1d(f)
               return kern.procedure
             }
             vars = get_args.call(util)
+            if print_headers
+              set_output(f)
+              ops.each_with_index{|op, i|
+                if util == "cost"
+                  decl kernels[i].cost_procedure
+                elsif  util == "dims"
+                  decl kernels[i].dims_procedure
+                elsif  util == "align"
+                  decl kernels[i].align_procedure
+                else
+                  decl kernels[i].procedure
+                end
+              }
+              next
+            end
+
             p = BOAST::Procedure(function_name, vars, :comment => get_comment("1d", util, precision)){
               decl temp_util unless util
               if @bench and not util
