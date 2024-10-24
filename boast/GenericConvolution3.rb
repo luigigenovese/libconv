@@ -1954,7 +1954,7 @@ class GenericConvolutionOperator1d
       nto = Int "nto" if @narr
       i = Int "i"
       j = Int "j"
-      tmp_cost = Int "c"
+      tmp_cost = Int("c", :size => 8) #Int "c"
       decl i, ndat_left, ndat_right
       decl tmp_cost if util == :cost
       decl nti, nto, j if @narr
